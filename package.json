@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check:levels": "node scripts/verify-levels.mjs"
+    "check:levels": "node scripts/verify-levels.mjs",
+    "voices": "node scripts/generate-voices.mjs"
   },
   "dependencies": {
     "n8ao": "^2.0.1",
@@ -16,6 +17,7 @@
     "three": "^0.186.1"
   },
   "devDependencies": {
+    "msedge-tts": "^2.0.9",
     "vite": "^8.3.2"
   }
 }

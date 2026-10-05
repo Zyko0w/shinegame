@@ -63,7 +63,11 @@ quality.canUpgradeNow = () => game.state === 'paused' || game.state === 'transit
 const sfx = new Sfx();
 const music = new Music(sfx);
 const voice = new Voice(sfx);
-sfx.onInit = () => music.start(); // le contexte audio naît au premier geste du joueur
+sfx.onInit = () => {
+  // le contexte audio naît au premier geste du joueur
+  music.start();
+  if (game.level) voice.preload(`${game.level.def.id}/`);
+};
 
 /* ═════════════ État du jeu ═════════════ */
 
@@ -232,6 +236,7 @@ function loadLevel(index) {
   ui.setLevel(index, level.def, level.gemTotal);
   level.intro();
   sky.setMood(level.def.mood);
+  voice.preload(`${level.def.id}/`); // répliques enregistrées du niveau
   if (game.state !== 'title' && game.state !== 'boot') music.setMood(level.def.mood);
   gfx.warmup([...level.warmupTargets(), particles.burst, cursor.pulse, cursor.frame]);
 }
@@ -452,7 +457,8 @@ async function startDialogue(npc) {
   await new Promise((r) => rig.animateTo({ r: 4.4, phi: 1.2, theta, target: mid, duration: 1.1, onComplete: r }));
 
   const def = npc.def;
-  const lines = npc.seen && def.repeat ? def.repeat : def.lines;
+  const set = npc.seen && def.repeat ? 'r' : 'l';
+  const lines = (set === 'r' ? def.repeat : def.lines).map((l, i) => ({ ...l, key: `${level.def.id}/${def.id}/${set}${i}` }));
   await dialogue.play(lines, { lumi: LUMI_VOICE, [def.id]: speakerOf(def) }, (who, on) => {
     if (who === def.id) npc.speaking = on;
     else if (who === 'lumi') player.talking = on;
@@ -633,7 +639,7 @@ function completeLevel(tile) {
     });
     const outro = level.def.outro;
     const npcDef = level.def.npcs?.find((n) => n.id === outro?.who);
-    if (outro && npcDef) voice.say(outro.text, speakerOf(npcDef));
+    if (outro && npcDef) voice.say(outro.text, speakerOf(npcDef), null, `${level.def.id}/outro`);
   }, 2300);
 }
 
@@ -875,6 +881,6 @@ startLoop();
 
 if (import.meta.env.DEV) {
   import('./dev/devtools.js').then(({ installDevtools }) =>
-    installDevtools({ game, scene, composer, gfx, quality, settings, player, rig, tweens, goToLevel, pathTo }),
+    installDevtools({ game, scene, composer, gfx, quality, settings, player, rig, tweens, goToLevel, pathTo, voice }),
   );
 }

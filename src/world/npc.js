@@ -47,7 +47,7 @@ export class Npc {
 
     const color = new THREE.Color(emo.color);
     const deep = new THREE.Color(emo.deep);
-    const core = color.clone().lerp(new THREE.Color(1, 1, 1), 0.55);
+    const core = color.clone().lerp(new THREE.Color(1, 1, 1), 0.3);
 
     this.flameMat = flameMaterial({ tipDir: 1, stretch: 0.9, intensity: 0.75, core, edge: color, tipColor: deep });
     const flame = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 22), this.flameMat);
@@ -59,7 +59,7 @@ export class Npc {
     tail.scale.set(0.11, 0.1, 0.11);
     tail.position.y = 0.3;
     tail.renderOrder = 4;
-    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), new THREE.MeshBasicMaterial({ color: core.clone().multiplyScalar(1.6) }));
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), new THREE.MeshBasicMaterial({ color: core.clone().multiplyScalar(1.1) }));
     glow.position.y = 0.42;
     this.halo = makeHalo(color, 1.2, 0.3);
     this.halo.position.y = 0.42;
@@ -137,9 +137,9 @@ export class Npc {
 
     // flamme : vacillement propre à l'émotion, plus vive quand il parle
     const fl = 0.85 + Math.sin(t * 9 * e.flicker + this.phase) * 0.08 * e.flicker + Math.sin(t * 23) * 0.04;
-    this.flameMat.uniforms.uIntensity.value = 0.72 * fl + this.talking * 0.35;
+    this.flameMat.uniforms.uIntensity.value = 0.55 * fl + this.talking * 0.25;
     this.flameMat.uniforms.uStretch.value = 0.9 + this.talking * 0.3 + (e.flicker > 1.5 ? Math.abs(Math.sin(t * 13)) * 0.4 : 0);
-    this.tailMat.uniforms.uIntensity.value = 0.5 * fl;
+    this.tailMat.uniforms.uIntensity.value = 0.42 * fl;
     this.halo.material.opacity = 0.25 + this.talking * 0.2;
 
     // bouche qui parle, yeux qui clignent
@@ -152,7 +152,7 @@ export class Npc {
     for (const eye of this.eyes) eye.scale.y = 1.2 * blink;
 
     // indicateur « ! »
-    this.bang.visible = !this.seen;
+    this.bang.visible = !this.seen && !this.inTalk;
     if (this.bang.visible) {
       this.bang.position.y = 0.92 + Math.sin(t * 3) * 0.05;
       this.bang.material.opacity = 0.75 + Math.sin(t * 6) * 0.25;

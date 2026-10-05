@@ -67,7 +67,10 @@ export class Dialogue {
     const start = performance.now();
     const tick = () => {
       if (!this.typing) return;
-      const n = Math.min(this.full.length, Math.floor(((performance.now() - start) / 1000) * CHARS_PER_SEC * rate));
+      // avec un enregistrement : le texte s'écrit au rythme exact de la voix
+      const dur = this.voice.clipDuration(line.key);
+      const cps = dur ? this.full.length / Math.max(0.6, dur * 0.88) : CHARS_PER_SEC * rate;
+      const n = Math.min(this.full.length, Math.floor(((performance.now() - start) / 1000) * cps));
       if (n !== this.shown) {
         this.shown = n;
         this.textEl.textContent = this.full.slice(0, n);
@@ -78,7 +81,7 @@ export class Dialogue {
     this.raf = requestAnimationFrame(tick);
 
     this.onSpeak?.(line.who, true);
-    this.voice.say(line.text, sp, () => this.onSpeak?.(line.who, false));
+    this.voice.say(line.text, sp, () => this.onSpeak?.(line.who, false), line.key);
   }
 
   endTyping() {
