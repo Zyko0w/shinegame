@@ -3,6 +3,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import * as P from './props.js';
 import { buildIslandDecor, createTree, createWaterfall, createPortal, createPlatform, createTrampoline } from './decor.js';
 import { Npc } from './npc.js';
+import { paletteOf } from '../game/moods.js';
 import { mulberry32, hashString } from '../core/random.js';
 import { ease } from '../core/tween.js';
 import { patchTopBlock, patchSideBlock, patchUnderside, patchIridescent } from './materials.js';
@@ -130,6 +131,7 @@ export class Level {
     this.root.add(this.content);
     this.content.add(this.flipper);
     this.rnd = mulberry32(hashString(def.id));
+    this.palette = paletteOf(def.mood); // couleurs du sol, de la végétation… selon l'émotion
     this.disposables = [];
     this.animated = { gems: [], decor: [], rocks: [], ghosts: [], trees: [], portals: [], platforms: [], trampolines: [] };
     this.npcs = [];
@@ -279,15 +281,16 @@ export class Level {
         }
         if (i < t.h) {
           sideMesh.setMatrixAt(si, dummy.matrix);
-          tmpColor.setHSL(0.69 + rnd() * 0.03, 0.26, 0.1 + (i / 12) * 0.08 + rnd() * 0.025);
+          const [sh, ss, sl] = this.palette.side;
+          tmpColor.setHSL(sh + rnd() * 0.03, ss, sl - 0.02 + (i / 12) * 0.08 + rnd() * 0.025);
           sideMesh.setColorAt(si, tmpColor);
           si++;
         } else {
           topMesh.setMatrixAt(ti, dummy.matrix);
-          // dessus en mousse cosmique (teal), quelques plaques violettes
-          const violet = rnd() < 0.18;
+          // dessus aux couleurs de l'émotion, avec quelques plaques contrastées
+          const [th, ts, tl] = rnd() < 0.18 ? this.palette.patch : this.palette.top;
           const checker = (t.x + t.z) % 2 === 0 ? 0.025 : 0;
-          tmpColor.setHSL(violet ? 0.7 + rnd() * 0.03 : 0.47 + rnd() * 0.04, violet ? 0.3 : 0.32, 0.3 + checker + rnd() * 0.035 + t.h * 0.005);
+          tmpColor.setHSL(th + rnd() * 0.03, ts, tl + checker + rnd() * 0.035 + t.h * 0.005);
           topMesh.setColorAt(ti, tmpColor);
         }
       }
@@ -306,7 +309,7 @@ export class Level {
     }
 
     // Habillage : herbe, fleurs, mousse, rochers, dessous rocheux
-    const decor = buildIslandDecor(face, rnd, { underside: !flipLevel });
+    const decor = buildIslandDecor(face, rnd, { underside: !flipLevel, palette: this.palette });
     face.group.add(decor.group);
     this.disposables.push(...decor.disposables);
 
@@ -406,7 +409,7 @@ export class Level {
         break;
       }
       case 'T': {
-        prop = createTree(rnd);
+        prop = createTree(rnd, this.palette);
         prop.position.copy(pos);
         prop.rotation.y = rnd() * Math.PI * 2;
         this.animated.trees.push(prop);

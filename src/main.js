@@ -28,6 +28,7 @@ import { Sfx } from './audio/sfx.js';
 import { Music } from './audio/music.js';
 import { Voice } from './audio/voice.js';
 import { Dialogue } from './ui/dialogue.js';
+import { Tutorials } from './ui/tutorial.js';
 import { EMOTIONS } from './world/npc.js';
 import { LUMI_VOICE } from './game/levels.js';
 
@@ -47,7 +48,8 @@ const lights = createLights(scene, renderer);
 const particles = new Particles();
 const cursor = new Cursor();
 const player = new Player();
-scene.add(sky.group, createVortex(renderer), particles.group, cursor.group, player.root, player.fx);
+const vortex = createVortex(renderer);
+scene.add(sky.group, vortex, particles.group, cursor.group, player.root, player.fx);
 
 const stats = new FrameStats(renderer);
 const quality = new Quality(stats, (tier) => {
@@ -236,6 +238,9 @@ function loadLevel(index) {
   ui.setLevel(index, level.def, level.gemTotal);
   level.intro();
   sky.setMood(level.def.mood);
+  vortex.setMood(level.palette.vortex);
+  lights.setMood(level.palette);
+  globalUniforms.uUnderGlow.value.setHex(level.palette.underGlow).multiplyScalar(0.75);
   voice.preload(`${level.def.id}/`); // répliques enregistrées du niveau
   if (game.state !== 'title' && game.state !== 'boot') music.setMood(level.def.mood);
   gfx.warmup([...level.warmupTargets(), particles.burst, cursor.pulse, cursor.frame]);
@@ -286,15 +291,16 @@ function enterPlay() {
   progress.setLast(game.index);
   rig.setInteractive(true);
   ui.showHUD(true);
-  ui.banner(game.index, game.level.def);
-  const hint = game.level.def.hints?.start;
   const level = game.level;
-  if (hint) setTimeout(() => playing() && game.level === level && ui.toast(hint, { duration: 5200 }), 3300);
-  // personnage juste à côté du départ : il engage la conversation après la bannière
-  setTimeout(() => {
-    const npc = game.level === level && playing() && !player.moving ? level.npcNear(player.tile) : null;
+  ui.banner(game.index, level.def, level.palette).then(async () => {
+    if (game.level !== level || !playing()) return;
+    await tutorials.teach('move');
+    if (game.level !== level || !playing()) return;
+    // esprit juste à côté du départ : il engage la conversation
+    const npc = !player.moving ? level.npcNear(player.tile) : null;
     if (npc && !npc.seen) startDialogue(npc);
-  }, 2700);
+    else hintOnce('start');
+  });
 }
 
 function startGame() {
@@ -397,10 +403,11 @@ player.onArrive = (tile) => {
 };
 
 // Tremplin : la membrane se comprime, puis Lumi est projeté vers l'arrivée
-function launchJump(tile) {
+async function launchJump(tile) {
   const level = game.level;
   player.locked = true;
   cursor.hide();
+  await tutorials.teach('trampoline');
   setTimeout(() => {
     if (game.level !== level || !playing()) return (player.locked = false);
     level.bounce(tile);
@@ -416,6 +423,26 @@ function launchJump(tile) {
 /* ═════════════ Dialogues ═════════════ */
 
 const dialogue = new Dialogue({ voice, sfx });
+
+// Fiches « Nouvelle mécanique » : le jeu se met en pause le temps de lire
+let stateBeforeTuto = 'play';
+const tutorials = new Tutorials({
+  sfx,
+  onOpen() {
+    stateBeforeTuto = game.state;
+    game.state = 'tutorial';
+    rig.setInteractive(false);
+    cursor.hide();
+  },
+  onClose() {
+    game.state = stateBeforeTuto;
+    rig.setInteractive(game.state === 'play');
+  },
+});
+document.getElementById('btn-tuto-reset').addEventListener('click', () => {
+  tutorials.reset();
+  ui.toast('Les fiches des mécaniques réapparaîtront.', { duration: 2400 });
+});
 let pendingTalk = null; // personnage vers lequel Lumi marche pour lui parler
 
 function speakerOf(npcDef) {
@@ -476,12 +503,14 @@ async function startDialogue(npc) {
     theta: saved.theta,
     target: savedTarget,
     duration: 1.0,
-    onComplete: () => {
+    onComplete: async () => {
       game.state = 'play';
       player.locked = false;
       rig.setInteractive(true);
       ui.showHUD(true);
       pointer.refresh();
+      await tutorials.teach('talk');
+      if (game.level === level && playing()) hintOnce('start');
     },
   });
 }
@@ -516,10 +545,11 @@ function hintOnce(key, color) {
 }
 
 // Plateforme mobile : courte pause, puis traversée (Lumi est entraîné)
-function ridePlatform(tile) {
+async function ridePlatform(tile) {
   const level = game.level;
   player.locked = true;
   cursor.hide();
+  await tutorials.teach('platform');
   setTimeout(() => {
     if (game.level !== level) return;
     const started = level.ride(tile, (dest) => {
@@ -539,12 +569,14 @@ function ridePlatform(tile) {
 }
 
 // Portail : Lumi se dissout, l'île pivote de 180°, il réapparaît sur l'autre face
-function flipIsland(tile) {
+async function flipIsland(tile) {
   const level = game.level;
   if (level.faces.length < 2) return;
   player.locked = true;
   player.stop();
   cursor.hide();
+  await tutorials.teach('portal');
+  if (game.level !== level) return;
   const p = level.worldOf(tile, new THREE.Vector3());
   p.y += 0.55;
   particles.emit(p, 0x9d7bff, 40, { speed: 2.2, up: 1.6, life: 1.1, size: 5, gravity: -0.8 });
@@ -582,6 +614,7 @@ function collectGem(tile) {
   particles.ring(pos, COLORS.gem, 20, 2.4, { size: 4, life: 0.6 });
   screenV.copy(pos).project(camera);
   ui.flyGem((screenV.x * 0.5 + 0.5) * innerWidth, (-screenV.y * 0.5 + 0.5) * innerHeight, idx, game.level.gemTotal);
+  setTimeout(() => playing() && tutorials.teach('gem'), 900);
   if (game.gems === game.level.gemTotal) {
     setTimeout(() => ui.toast('Tous les cristaux ! Il ne reste que l’étoile.', { color: 'var(--cyan)' }), 900);
   }
@@ -589,6 +622,7 @@ function collectGem(tile) {
 
 function pressButton() {
   const level = game.level;
+  tutorials.teach('button');
   sfx.button();
   pad.rumble(0.6, 0.35, 180);
   rig.shake(0.08);
@@ -704,6 +738,13 @@ function activeContainer() {
 const keyboard = new KeyboardInput({
   // Fenêtres et menus consomment les touches avant le jeu
   intercept(e) {
+    if (tutorials.isOpen) {
+      if (['Enter', 'Space', 'Escape'].includes(e.code) || settings.actionForCode(e.code) === 'interact') {
+        e.preventDefault();
+        tutorials.dismiss();
+      }
+      return true;
+    }
     if (game.state === 'dialogue') {
       if (dialogue.isOpen && (e.code === 'Space' || e.code === 'Enter' || settings.actionForCode(e.code) === 'interact')) {
         e.preventDefault();
@@ -759,6 +800,7 @@ const pad = new PadController({
     interact,
   },
   dialogue: { get isOpen() { return dialogue.isOpen; }, advance: () => dialogue.advance(), skip: () => dialogue.skip() },
+  tutorial: { get isOpen() { return tutorials.isOpen; }, dismiss: () => tutorials.dismiss() },
 });
 
 // Pas au clavier / à la manette, relatif à l'orientation de la caméra
@@ -824,7 +866,7 @@ function frame(timestamp) {
   }
   const dt = Math.min(rawDt, 1 / 20);
   const t = timer.getElapsed();
-  const gdt = game.state === 'paused' ? 0 : dt;
+  const gdt = game.state === 'paused' || game.state === 'tutorial' ? 0 : dt;
   gameTime += gdt;
   stats.poll();
   quality.sample(rawDt);

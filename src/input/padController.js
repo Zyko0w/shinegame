@@ -70,6 +70,10 @@ export class PadController {
     sfx.init();
     const box = this.c.container();
     this.setNavMode(true);
+    if (this.c.tutorial?.isOpen) {
+      if (b === BTN.A || b === BTN.B || b === BTN.START) this.c.tutorial.dismiss();
+      return;
+    }
     if (this.c.dialogue?.isOpen) {
       if (b === BTN.A) this.c.dialogue.advance();
       else if (b === BTN.B || b === BTN.START) this.c.dialogue.skip();

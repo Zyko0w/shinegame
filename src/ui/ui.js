@@ -353,14 +353,21 @@ export class UI {
     this.el.toast.classList.remove('is-visible');
   }
 
-  banner(index, def) {
+  // Carte d'ouverture de chapitre : émotion en grand, nom du niveau, phrase
+  // d'ambiance. Résolue quand la carte a disparu (~4 s).
+  banner(index, def, palette) {
     const b = this.el.banner;
-    this.el.bannerIndex.textContent = def.chapter ?? `Niveau ${String(index + 1).padStart(2, '0')}`;
+    const [chapter] = (def.chapter ?? `Niveau ${pad(index + 1)}`).split('·');
+    this.el.bannerIndex.textContent = chapter.trim();
+    $('banner-emotion').textContent = palette?.label ?? def.name;
     this.el.bannerName.textContent = def.name;
-    this.el.bannerSub.textContent = def.subtitle;
+    this.el.bannerSub.textContent = palette?.tagline ?? def.subtitle;
+    b.style.setProperty('--mood', palette?.accent ?? '#ffd98a');
     b.classList.remove('play');
     void b.offsetWidth;
     b.classList.add('play');
+    clearTimeout(this.bannerTimer);
+    return new Promise((r) => (this.bannerTimer = setTimeout(r, 3600)));
   }
 
   /* ───────────── Fin de niveau ───────────── */

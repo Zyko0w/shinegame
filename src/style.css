@@ -954,3 +954,105 @@ body.pad-nav #scene { cursor: none; }
   .dlg-portrait { display: none; }
   .dlg-text { font-size: 15px; }
 }
+
+/* ───────────────── Carte de chapitre ───────────────── */
+
+.banner {
+  --mood: #ffd98a;
+  position: absolute;
+  inset: 0;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 24px;
+  text-align: center;
+  transform: none;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 60% 45% at 50% 48%, rgba(5, 4, 12, 0.72), transparent 75%);
+}
+.banner-chapter { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.45em; text-transform: uppercase; color: var(--ink-dim); }
+.banner-emotion {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: clamp(42px, 8vw, 96px);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  color: var(--mood);
+  text-shadow: 0 0 30px color-mix(in srgb, var(--mood) 70%, transparent), 0 0 90px color-mix(in srgb, var(--mood) 40%, transparent);
+}
+.banner-rule { width: min(220px, 40vw); height: 1px; margin: 4px 0; background: linear-gradient(90deg, transparent, var(--mood), transparent); }
+.banner-name { font-family: var(--f-display); font-weight: 700; font-size: clamp(18px, 2.4vw, 26px); color: var(--ink); }
+.banner-sub { max-width: 520px; font-size: 15px; font-style: italic; color: var(--ink-dim); }
+.banner.play { animation: chapter 4.2s var(--ease-out) forwards; }
+.banner.play .banner-emotion { animation: chapter-word 4.2s var(--ease-out) forwards; }
+@keyframes chapter {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes chapter-word {
+  0% { letter-spacing: 0.12em; filter: blur(8px); }
+  25% { filter: blur(0); }
+  100% { letter-spacing: -0.02em; }
+}
+
+/* ───────────────── Fiche « Nouvelle mécanique » ───────────────── */
+
+.tutorial {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: end center;
+  padding: 0 16px calc(var(--gutter) + 90px);
+  background: linear-gradient(0deg, rgba(5, 4, 12, 0.6), transparent 55%);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.35s var(--ease-out), visibility 0s linear 0.35s;
+}
+.tutorial.is-visible { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity 0.35s var(--ease-out), visibility 0s; }
+.tuto-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 20px;
+  width: min(720px, 100%);
+  padding: 20px 22px;
+  background: linear-gradient(180deg, rgba(26, 22, 52, 0.95), rgba(12, 10, 26, 0.97));
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8), 0 0 50px -24px var(--gold);
+  transform: translateY(18px);
+  transition: transform 0.5s var(--ease-spring);
+}
+.tutorial.is-visible .tuto-card { transform: none; }
+.tuto-icon {
+  width: 56px;
+  height: 56px;
+  padding: 12px;
+  border-radius: 16px;
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  background: radial-gradient(circle, rgba(255, 212, 122, 0.18), rgba(255, 212, 122, 0.04));
+  box-shadow: inset 0 0 0 1px rgba(255, 212, 122, 0.3);
+}
+.tuto-title { margin: 6px 0 6px; font-family: var(--f-display); font-weight: 800; font-size: 24px; letter-spacing: -0.01em; }
+.tuto-text { font-size: 15px; line-height: 1.6; color: var(--ink-dim); }
+.tuto-text strong { color: var(--ink); font-weight: 600; }
+.tuto-text kbd { font-size: 0.8em; }
+#btn-tuto-reset { margin-top: 14px; }
+
+@media (max-width: 720px) {
+  .tuto-card { grid-template-columns: 1fr; gap: 12px; text-align: left; }
+  .tuto-icon { width: 46px; height: 46px; padding: 10px; }
+  .tuto-card .btn { width: 100%; }
+}

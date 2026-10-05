@@ -124,14 +124,26 @@
         <span class="dlg-skip">Échap · passer</span>
       </section>
 
+      <section id="tutorial" class="tutorial" role="dialog" aria-modal="true" aria-labelledby="tuto-title" aria-hidden="true">
+        <div class="tuto-card">
+          <svg class="tuto-icon" id="tuto-icon" viewBox="0 0 24 24" aria-hidden="true"></svg>
+          <div class="tuto-body">
+            <p class="eyebrow gold"><span class="dot"></span>nouvelle mécanique</p>
+            <h2 class="tuto-title" id="tuto-title">—</h2>
+            <p class="tuto-text" id="tuto-text"></p>
+          </div>
+          <button class="btn btn-primary btn-small" id="tuto-ok" type="button"><span>Compris</span></button>
+        </div>
+      </section>
+
       <div id="talk-prompt" class="talk-prompt" aria-hidden="true"><kbd id="talk-key">Espace</kbd><span>Parler à <strong id="talk-name"></strong></span></div>
 
       <div id="banner" class="banner" aria-hidden="true">
-        <span class="banner-line"></span>
-        <span class="banner-index" id="banner-index">Niveau 01</span>
+        <span class="banner-chapter" id="banner-index">Prologue</span>
+        <span class="banner-emotion" id="banner-emotion">L’Émerveillement</span>
+        <span class="banner-rule" aria-hidden="true"></span>
         <span class="banner-name" id="banner-name">—</span>
         <span class="banner-sub" id="banner-sub">—</span>
-        <span class="banner-line"></span>
       </div>
 
       <!-- ───────────── Pause ───────────── -->
@@ -309,6 +321,7 @@
                 <div class="pad-row"><span class="pad-btn">X</span><span>Recommencer (maintenir)</span></div>
                 <div class="pad-row"><span class="pad-btn">Start</span><span>Pause</span></div>
               </div>
+              <button class="btn btn-ghost btn-small" id="btn-tuto-reset" type="button"><span>Revoir les tutoriels</span></button>
               <p class="set-note">Les flèches déplacent toujours Lumi. <kbd>Échap</kbd> ouvre la pause. Clic / tap : se déplacer · glisser : tourner · molette : zoom.</p>
             </div>
           </div>

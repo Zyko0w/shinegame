@@ -4,7 +4,8 @@ import * as THREE from 'three';
 // + ciel violet. La shadow map n'est recalculée qu'à la demande.
 
 export function createLights(scene, renderer) {
-  scene.add(new THREE.HemisphereLight(0x8a7dff, 0x120a24, 0.7));
+  const hemi = new THREE.HemisphereLight(0x8a7dff, 0x120a24, 0.7);
+  scene.add(hemi);
   scene.add(new THREE.AmbientLight(0x2a2050, 0.5));
 
   const key = new THREE.DirectionalLight(0xc8d2ff, 1.9);
@@ -22,6 +23,11 @@ export function createLights(scene, renderer) {
 
   return {
     key,
+    setMood(palette) {
+      hemi.color.setHex(palette.hemi[0]);
+      hemi.groundColor.setHex(palette.hemi[1]);
+      rim.color.setHex(palette.rim);
+    },
     // Cadre la caméra d'ombre sur le niveau (meilleure résolution utile)
     fitShadow(level) {
       const s = level.radius + 3;

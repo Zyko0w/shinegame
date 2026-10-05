@@ -90,7 +90,7 @@ function instanced(geo, mat, n) {
  * @param {object} opts  { underside: bool } dessous rocheux (îles non retournables)
  * @returns {{ group: THREE.Group, disposables: any[] }}
  */
-export function buildIslandDecor(layer, rnd, { underside }) {
+export function buildIslandDecor(layer, rnd, { underside, palette }) {
   const r = res();
   const group = new THREE.Group();
   const disposables = [];
@@ -130,7 +130,8 @@ export function buildIslandDecor(layer, rnd, { underside }) {
     dummy.scale.set(s, s * (0.8 + hue * 0.5), s);
     dummy.updateMatrix();
     grassMesh.setMatrixAt(i, dummy.matrix);
-    color.setHSL(hue < 0.75 ? 0.46 + hue * 0.06 : 0.75, 0.55, 0.42);
+    const [gh, gs, gl] = hue < 0.75 ? palette.grass : palette.grassAlt;
+    color.setHSL(gh + (hue % 0.25) * 0.2, gs, gl);
     grassMesh.setColorAt(i, color);
   });
   const flowerMesh = instanced(r.flowerGeo, r.flowerMat, flowers.length);
@@ -140,7 +141,8 @@ export function buildIslandDecor(layer, rnd, { underside }) {
     dummy.scale.setScalar(0.7 + hue * 0.8);
     dummy.updateMatrix();
     flowerMesh.setMatrixAt(i, dummy.matrix);
-    color.setHSL(hue < 0.5 ? 0.88 : hue < 0.8 ? 0.5 : 0.13, 0.9, 0.62);
+    const f = palette.flowers;
+    color.setHSL(hue < 0.5 ? f[0] : hue < 0.8 ? f[1] : f[2], 0.9, 0.62);
     flowerMesh.setColorAt(i, color);
   });
 
@@ -163,7 +165,7 @@ export function buildIslandDecor(layer, rnd, { underside }) {
     dummy.scale.set(dx ? 0.11 : w, 0.06, dz ? 0.11 : w);
     dummy.updateMatrix();
     lipMesh.setMatrixAt(i, dummy.matrix);
-    color.setHSL(0.48 + rnd() * 0.04, 0.4, 0.17 + rnd() * 0.04);
+    color.setHSL(palette.lip[0] + rnd() * 0.04, palette.lip[1], palette.lip[2] + rnd() * 0.04);
     lipMesh.setColorAt(i, color);
   });
   const dripMesh = instanced(r.dripGeo, r.lipMat, drips.length);
@@ -173,7 +175,7 @@ export function buildIslandDecor(layer, rnd, { underside }) {
     dummy.scale.set(rad, len, rad);
     dummy.updateMatrix();
     dripMesh.setMatrixAt(i, dummy.matrix);
-    color.setHSL(0.48, 0.4, 0.17);
+    color.setHSL(...palette.lip);
     dripMesh.setColorAt(i, color);
   });
 
@@ -202,7 +204,7 @@ export function buildIslandDecor(layer, rnd, { underside }) {
     dummy.scale.set(s, s * (0.7 + rnd() * 0.5), s);
     dummy.updateMatrix();
     rockMesh.setMatrixAt(i, dummy.matrix);
-    color.setHSL(0.7 + rnd() * 0.03, 0.22, 0.12 + rnd() * 0.05);
+    color.setHSL(palette.side[0] + rnd() * 0.03, palette.side[1] * 0.85, palette.side[2] + 0.02 + rnd() * 0.05);
     rockMesh.setColorAt(i, color);
   });
 
@@ -241,7 +243,7 @@ export function buildIslandDecor(layer, rnd, { underside }) {
       dummy.scale.set(w * (0.95 + rnd() * 0.1), d, w * (0.95 + rnd() * 0.1));
       dummy.updateMatrix();
       coneMesh.setMatrixAt(i, dummy.matrix);
-      color.setHSL(0.7 + rnd() * 0.03, 0.3, 0.07 + rnd() * 0.03);
+      color.setHSL(palette.side[0] + rnd() * 0.03, palette.side[1] + 0.05, 0.07 + rnd() * 0.03);
       coneMesh.setColorAt(i, color);
     });
     coneMesh.castShadow = true;
@@ -276,14 +278,14 @@ export function buildIslandDecor(layer, rnd, { underside }) {
 /* ───────────── Objets de décor ───────────── */
 
 // Arbre cosmique (occupe sa case : Lumi ne peut pas la traverser)
-export function createTree(rnd) {
+export function createTree(rnd, palette) {
   const g = new THREE.Group();
   const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3a2a52, roughness: 0.9 });
   const leafMat = new THREE.MeshStandardMaterial({
-    color: rnd() < 0.5 ? 0x5fd6c0 : 0x9d86ff,
+    color: palette.leaves[rnd() < 0.5 ? 0 : 1],
     roughness: 0.6,
     flatShading: true,
-    emissive: 0x1d2f55,
+    emissive: palette.leafGlow,
     emissiveIntensity: 0.6,
   });
   const h = 0.55 + rnd() * 0.25;

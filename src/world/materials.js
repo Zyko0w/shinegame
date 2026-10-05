@@ -8,10 +8,12 @@ export const globalUniforms = {
   uTime: { value: 0 },
   uPixelRatio: { value: 1 },
   uBakedAO: { value: 1 }, // atténuée quand l'AO écran (N8AO) est active
+  uUnderGlow: { value: new THREE.Color(0.38, 0.16, 0.85) }, // lueur sous l'île (selon l'émotion)
 };
 
 const COMMON_GLSL = /* glsl */ `
   uniform float uTime;
+  uniform vec3 uUnderGlow;
   varying vec3 vWPos;
   varying vec3 vOPos;
   varying vec3 vWNorm;
@@ -94,6 +96,7 @@ function patch(material, { color = '', emissive = '', key, bakedAO = false }) {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = globalUniforms.uTime;
     shader.uniforms.uBakedAO = globalUniforms.uBakedAO;
+    shader.uniforms.uUnderGlow = globalUniforms.uUnderGlow;
     shader.uniforms.uNoise = noiseUniform;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', VERTEX_DECL + (bakedAO ? AO_VERTEX_DECL : ''))
@@ -190,7 +193,7 @@ export function patchUnderside(material) {
       {
         float tip = smoothstep(-0.25, -1.0, vOPos.y);
         float streak = noiseAt(vec2((vWPos.x + vWPos.z) * 0.75, vWPos.y * 0.19 - uTime * 0.04)).r;
-        totalEmissiveRadiance += vec3(0.38, 0.16, 0.85) * tip * (0.15 + streak * 0.45);
+        totalEmissiveRadiance += uUnderGlow * tip * (0.15 + streak * 0.45);
       }
     `,
   });

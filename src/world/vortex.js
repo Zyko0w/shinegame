@@ -59,7 +59,14 @@ export function createVortex(renderer) {
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
-    uniforms: { uTime: globalUniforms.uTime, uIntensity: { value: 1 }, uPattern: { value: bakePattern(renderer) } },
+    uniforms: {
+      uTime: globalUniforms.uTime,
+      uIntensity: { value: 1 },
+      uPattern: { value: bakePattern(renderer) },
+      uInner: { value: new THREE.Color(1.0, 0.72, 0.5) },
+      uMid: { value: new THREE.Color(0.62, 0.25, 0.95) },
+      uOuter: { value: new THREE.Color(0.1, 0.32, 0.55) },
+    },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
       void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
@@ -68,6 +75,9 @@ export function createVortex(renderer) {
       uniform float uTime;
       uniform float uIntensity;
       uniform sampler2D uPattern;
+      uniform vec3 uInner;
+      uniform vec3 uMid;
+      uniform vec3 uOuter;
       varying vec2 vUv;
       void main() {
         vec2 p = (vUv - 0.5) * 2.0;
@@ -79,8 +89,8 @@ export function createVortex(renderer) {
         vec2 pat = texture2D(uPattern, vec2(swirl * 0.15915494, r)).rg;
 
         float disk = smoothstep(1.0, 0.35, r) * smoothstep(0.07, 0.2, r);
-        vec3 col = mix(vec3(1.0, 0.72, 0.5), vec3(0.62, 0.25, 0.95), smoothstep(0.12, 0.4, r));
-        col = mix(col, vec3(0.1, 0.32, 0.55), smoothstep(0.45, 0.95, r));
+        vec3 col = mix(uInner, uMid, smoothstep(0.12, 0.4, r));
+        col = mix(col, uOuter, smoothstep(0.45, 0.95, r));
 
         float body = disk * (0.25 + pat.r * 0.9) * (0.45 + pat.g * 0.8);
         float pr = (r - 0.11) * 38.0;
@@ -95,5 +105,11 @@ export function createVortex(renderer) {
   mesh.position.y = -18;
   mesh.renderOrder = -5;
   mesh.frustumCulled = false;
+  // teinte du tourbillon selon l'émotion : [[intérieur], [milieu], [extérieur]]
+  mesh.setMood = (cols) => {
+    mat.uniforms.uInner.value.setRGB(...cols[0]);
+    mat.uniforms.uMid.value.setRGB(...cols[1]);
+    mat.uniforms.uOuter.value.setRGB(...cols[2]);
+  };
   return mesh;
 }
