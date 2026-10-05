@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "check:levels": "node scripts/verify-levels.mjs",
-    "voices": "node scripts/generate-voices.mjs"
+    "voices": "node scripts/generate-voices.mjs",
+    "voices:audition": "node scripts/audition-voices.mjs"
   },
   "dependencies": {
     "n8ao": "^2.0.1",

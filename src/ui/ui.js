@@ -1,4 +1,6 @@
 import { progress } from '../core/progress.js';
+import { islandSVG } from './islandPreview.js';
+import { paletteOf } from '../game/moods.js';
 
 // Couche DOM : écrans, menu d'accueil, HUD, toasts, bannières. Aucune logique
 // de jeu ici, uniquement de l'affichage piloté par main.js via des callbacks.
@@ -12,6 +14,16 @@ const LOCK_SVG = '<svg class="level-lock" viewBox="0 0 24 24" aria-hidden="true"
 
 const $ = (id) => document.getElementById(id);
 const pad = (n) => String(n).padStart(2, '0');
+
+// Positions des îles sur la carte (en %), en forme de constellation sinueuse
+function constellation(n) {
+  const portrait = window.innerWidth < 760;
+  return Array.from({ length: n }, (_, i) => {
+    const t = n > 1 ? i / (n - 1) : 0.5;
+    const wave = (i % 2 ? -1 : 1) * 15 + Math.sin(i * 1.7) * 4;
+    return portrait ? { x: 50 + wave * 1.5, y: 7 + t * 78 } : { x: 9 + t * 82, y: 52 + wave };
+  });
+}
 
 export class UI {
   constructor(handlers, levels) {
@@ -181,35 +193,90 @@ export class UI {
 
   /* ───────────── Niveaux & crédits ───────────── */
 
+  // Carte des constellations : chaque île est une étoile de la constellation,
+  // avec sa miniature isométrique aux couleurs de son émotion.
   openLevels() {
-    const grid = this.el.levelGrid;
-    grid.innerHTML = '';
+    const nodes = this.el.levelGrid;
+    const lines = $('starmap-lines');
+    nodes.innerHTML = '';
+    const pos = constellation(this.levels.length);
+    // tracé de la constellation (lignes dorées entre îles débloquées)
+    lines.innerHTML = pos
+      .slice(1)
+      .map((p, k) => {
+        const a = pos[k];
+        const lit = progress.isUnlocked(k + 1);
+        return `<line x1="${a.x}" y1="${a.y}" x2="${p.x}" y2="${p.y}" class="${lit ? 'lit' : ''}" vector-effect="non-scaling-stroke"/>`;
+      })
+      .join('');
+
     this.levels.forEach((def, i) => {
       const p = progress.level(def.id);
       const unlocked = progress.isUnlocked(i);
-      const total = [...def.objects, ...(def.under?.objects ?? [])].join('').split('G').length - 1;
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'level-card';
-      card.disabled = !unlocked;
-      card.setAttribute('aria-label', `Niveau ${i + 1}, ${def.name}${unlocked ? '' : ', verrouillé'}`);
-      const gems = Array.from({ length: total }, (_, g) => `<span class="gem-slot${g < p.gems ? ' is-filled' : ''}">${GEM_SVG}</span>`).join('');
-      const badge = p.done ? `terminé${p.steps ? ' · ' + p.steps + ' pas' : ''}` : unlocked ? 'nouveau' : 'verrouillé';
-      card.innerHTML = `
-        ${unlocked ? '' : LOCK_SVG}
-        <span class="level-num">${pad(i + 1)}</span>
-        <span class="level-name">${def.name}</span>
-        <span class="level-subt">${def.subtitle}</span>
-        <span class="level-meta">${gems}<span class="level-badge${p.done ? ' done' : ''}">${badge}</span></span>`;
-      card.addEventListener('click', () => {
+      const palette = paletteOf(def.mood);
+      const node = document.createElement('button');
+      node.type = 'button';
+      node.className = `sm-node${unlocked ? '' : ' is-locked'}${p.done ? ' is-done' : ''}`;
+      node.style.setProperty('--x', `${pos[i].x}%`);
+      node.style.setProperty('--y', `${pos[i].y}%`);
+      node.style.setProperty('--mood', palette.accent);
+      node.style.setProperty('--delay', `${i * 0.08}s`);
+      node.setAttribute('aria-label', `${def.chapter} — ${def.name}${unlocked ? '' : ', verrouillé'}`);
+      node.innerHTML = `
+        <span class="sm-island">${islandSVG(def, palette)}</span>
+        <span class="sm-star" aria-hidden="true"></span>
+        <span class="sm-label"><span class="sm-num">${pad(i + 1)}</span>${def.name}</span>
+        ${unlocked ? '' : LOCK_SVG}`;
+      const select = () => this.showLevelInfo(i);
+      node.addEventListener('pointerenter', () => {
+        select();
+        this.h.hoverSound?.();
+      });
+      node.addEventListener('focus', select);
+      node.addEventListener('click', () => {
+        if (!unlocked) return this.showLevelInfo(i, true);
         this.closeLevels(false);
         this.h.playLevel(i);
       });
-      card.addEventListener('pointerenter', () => this.h.hoverSound?.());
-      grid.appendChild(card);
+      nodes.appendChild(node);
     });
+    $('si-play').onclick = () => {
+      if (!progress.isUnlocked(this.levelInfo)) return;
+      this.closeLevels(false);
+      this.h.playLevel(this.levelInfo);
+    };
     this.setVisible(this.el.levels, true);
-    setTimeout(() => grid.querySelector('.level-card:not(:disabled)')?.focus({ preventScroll: true }), 60);
+    // on se place sur le dernier chapitre accessible
+    const current = Math.min(progress.data.unlocked, this.levels.length) - 1;
+    this.showLevelInfo(current);
+    setTimeout(() => nodes.children[current]?.focus({ preventScroll: true }), 80);
+  }
+
+  showLevelInfo(i, nudge = false) {
+    this.levelInfo = i;
+    const def = this.levels[i];
+    const palette = paletteOf(def.mood);
+    const p = progress.level(def.id);
+    const unlocked = progress.isUnlocked(i);
+    const total = [...def.objects, ...(def.under?.objects ?? [])].join('').split('G').length - 1;
+    const [chapter] = def.chapter.split('·');
+    $('si-chapter').textContent = chapter.trim();
+    $('si-emotion').textContent = palette.label;
+    $('si-name').textContent = def.name;
+    $('si-tagline').textContent = unlocked ? palette.tagline : 'Rallume l’étoile du chapitre précédent pour rejoindre cette île.';
+    const gems = Array.from({ length: total }, (_, g) => `<span class="gem-slot${g < p.gems ? ' is-filled' : ''}">${GEM_SVG}</span>`).join('');
+    $('si-meta').innerHTML = `${gems}<span class="si-state${p.done ? ' done' : ''}">${p.done ? `étoile rallumée${p.steps ? ' · ' + p.steps + ' pas' : ''}` : unlocked ? 'à explorer' : 'verrouillée'}</span>`;
+    const info = $('starmap-info');
+    info.style.setProperty('--mood', palette.accent);
+    info.classList.toggle('is-locked', !unlocked);
+    $('si-play').disabled = !unlocked;
+    this.el.levels.style.setProperty('--mood', palette.accent);
+    for (const [k, n] of [...this.el.levelGrid.children].entries()) n.classList.toggle('is-selected', k === i);
+    if (nudge) {
+      info.classList.remove('shake');
+      void info.offsetWidth;
+      info.classList.add('shake');
+    }
   }
 
   closeLevels(refocus = true) {

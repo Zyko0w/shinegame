@@ -18,13 +18,16 @@ import { LEVELS } from '../src/game/levels.js';
 
 // Casting : une voix Edge + un réglage de hauteur / débit par personnage
 export const CAST = {
-  lumi: { voice: 'fr-FR-EloiseNeural', rate: '+4%', pitch: '+6Hz' }, // petite flamme vive
-  orion: { voice: 'fr-FR-HenriNeural', rate: '-14%', pitch: '-14Hz' }, // vieux gardien
-  mira: { voice: 'fr-FR-VivienneMultilingualNeural', rate: '-12%', pitch: '-4Hz' }, // tristesse
-  lyre: { voice: 'fr-FR-RemyMultilingualNeural', rate: '-10%', pitch: '-2Hz' }, // solitude
-  andra: { voice: 'fr-CH-ArianeNeural', rate: '+10%', pitch: '+12Hz' }, // peur
-  betel: { voice: 'fr-BE-GerardNeural', rate: '-6%', pitch: '-10Hz' }, // rancœur
-  antar: { voice: 'fr-CA-JeanNeural', rate: '+12%', pitch: '-6Hz', volume: '+10%' }, // colère
+  // Voix « Multilingual » (nouvelle génération, les plus naturelles), langue forcée
+  // en français. Pas de décalage de hauteur : c'est ce qui rendait les voix robotiques.
+  // Écoute les alternatives avec « npm run voices:audition ».
+  lumi: { voice: 'en-US-EmmaMultilingualNeural', rate: '+6%' }, // petite flamme vive
+  orion: { voice: 'fr-FR-RemyMultilingualNeural', rate: '-10%' }, // vieux gardien
+  mira: { voice: 'fr-FR-VivienneMultilingualNeural', rate: '-12%', pitch: '-4Hz' }, // tristesse (inchangée)
+  lyre: { voice: 'en-US-AndrewMultilingualNeural', rate: '-8%' }, // solitude
+  andra: { voice: 'en-US-AvaMultilingualNeural', rate: '+8%' }, // peur
+  betel: { voice: 'de-DE-FlorianMultilingualNeural', rate: '-4%' }, // rancœur
+  antar: { voice: 'en-US-BrianMultilingualNeural', rate: '+10%', volume: '+10%' }, // colère
 };
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -82,7 +85,8 @@ for (const line of lines) {
         tts.close();
         tts = new MsEdgeTTS();
       }
-      await tts.setMetadata(cast.voice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
+      // langue forcée en français (indispensable pour les voix non françaises)
+      await tts.setMetadata(cast.voice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3, { voiceLocale: 'fr-FR' });
       currentVoice = cast.voice;
     }
     rmSync(tmp, { recursive: true, force: true });
