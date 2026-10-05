@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#07060f" />
+    <title>Shine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <canvas id="scene" aria-label="Diorama du niveau"></canvas>
+
+    <div id="ui">
+      <!-- ───────────── Écran titre ───────────── -->
+      <section id="title" class="screen is-visible" aria-labelledby="logo">
+        <div class="title-wrap">
+          <p class="eyebrow"><span class="dot"></span>puzzle-diorama cosmique</p>
+          <h1 id="logo" class="logo" aria-label="Shine">
+            <span>S</span><span>H</span><span>I</span><span>N</span><span>E</span>
+            <svg class="logo-spark" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 0 L14 10 L24 12 L14 14 L12 24 L10 14 L0 12 L10 10 Z" />
+            </svg>
+          </h1>
+          <p class="tagline">
+            Guide <strong>Lumi</strong> à travers les îles flottantes du vide
+            et rallume les étoiles perdues, une case à la fois.
+          </p>
+          <nav class="main-menu" aria-label="Menu principal">
+            <ul id="main-menu">
+            <li><button class="menu-item" id="menu-continue" type="button">
+              <span class="menu-mark" aria-hidden="true"></span>
+              <span class="menu-label">Continuer</span>
+              <span class="menu-sub" id="menu-continue-sub">—</span>
+            </button></li>
+            <li><button class="menu-item" id="menu-new" type="button">
+              <span class="menu-mark" aria-hidden="true"></span>
+              <span class="menu-label">Nouvelle partie</span>
+              
+            </button></li>
+            <li><button class="menu-item" id="menu-levels" type="button">
+              <span class="menu-mark" aria-hidden="true"></span>
+              <span class="menu-label">Niveaux</span>
+              <span class="menu-sub" id="menu-levels-sub">—</span>
+            </button></li>
+            <li><button class="menu-item" id="menu-settings" type="button">
+              <span class="menu-mark" aria-hidden="true"></span>
+              <span class="menu-label">Paramètres</span>
+              
+            </button></li>
+            <li><button class="menu-item" id="menu-credits" type="button">
+              <span class="menu-mark" aria-hidden="true"></span>
+              <span class="menu-label">Crédits</span>
+              
+            </button></li>
+            </ul>
+          </nav>
+        </div>
+        <footer class="title-foot">
+          <span><kbd>↑</kbd><kbd>↓</kbd> naviguer</span>
+          <span><kbd>Entrée</kbd> valider</span>
+          <span class="version">v0.2 — prototype</span>
+        </footer>
+      </section>
+
+      <!-- ───────────── HUD ───────────── -->
+      <header id="hud" class="hud" aria-hidden="true">
+        <div class="chip hud-level">
+          <span class="hud-index" id="hud-index">01</span>
+          <span class="hud-text">
+            <span class="hud-name" id="hud-name">—</span>
+            <span class="hud-sub" id="hud-sub">—</span>
+          </span>
+        </div>
+        <div class="chip hud-gems" id="hud-gems" aria-label="Cristaux collectés">
+          <!-- slots injectés -->
+        </div>
+      </header>
+
+      <nav id="dock" class="dock" aria-hidden="true">
+        <div class="chip steps"><span class="steps-n" id="steps">0</span><span class="steps-l">pas</span></div>
+
+        <div class="chip dock-cam" role="group" aria-label="Caméra">
+          <button class="icon-btn" id="btn-rot-left" type="button" aria-label="Tourner à gauche (A)" title="Tourner à gauche — A">
+            <svg viewBox="0 0 24 24"><path d="M4 9a8 8 0 1 1-1 6" /><path d="M4 3v6h6" /></svg>
+          </button>
+          <button class="icon-btn" id="btn-recenter" type="button" aria-label="Recentrer (C)" title="Recentrer — C">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" /></svg>
+          </button>
+          <button class="icon-btn" id="btn-rot-right" type="button" aria-label="Tourner à droite (E)" title="Tourner à droite — E">
+            <svg viewBox="0 0 24 24"><path d="M20 9a8 8 0 1 0 1 6" /><path d="M20 3v6h-6" /></svg>
+          </button>
+        </div>
+
+        <div class="chip dock-sys">
+          <button class="icon-btn" id="btn-sound" type="button" aria-label="Couper le son (M)" title="Son — M" aria-pressed="true">
+            <svg class="ico-on" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" /><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" /></svg>
+            <svg class="ico-off" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" /><path d="M17 9l5 6M22 9l-5 6" /></svg>
+          </button>
+          <button class="icon-btn" id="btn-settings-dock" type="button" aria-label="Paramètres" title="Paramètres">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
+          </button>
+          <button class="icon-btn" id="btn-pause" type="button" aria-label="Pause (Échap)" title="Pause — Échap">
+            <svg viewBox="0 0 24 24"><path d="M9 5v14M15 5v14" /></svg>
+          </button>
+        </div>
+      </nav>
+
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+      <div id="banner" class="banner" aria-hidden="true">
+        <span class="banner-line"></span>
+        <span class="banner-index" id="banner-index">Niveau 01</span>
+        <span class="banner-name" id="banner-name">—</span>
+        <span class="banner-sub" id="banner-sub">—</span>
+        <span class="banner-line"></span>
+      </div>
+
+      <!-- ───────────── Pause ───────────── -->
+      <section id="pause" class="screen modal" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+        <div class="card">
+          <p class="eyebrow"><span class="dot"></span>en suspens</p>
+          <h2 id="pause-title" class="card-title">Pause</h2>
+          <div class="card-actions">
+            <button class="btn btn-primary" id="btn-resume" type="button"><span>Reprendre</span></button>
+            <button class="btn btn-ghost" id="btn-restart" type="button"><span>Recommencer le niveau</span></button>
+            <button class="btn btn-ghost" id="btn-settings-pause" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg><span>Paramètres</span></button>
+            <button class="btn btn-ghost" id="btn-quit" type="button"><span>Retour au titre</span></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────── Fin de niveau ───────────── -->
+      <section id="complete" class="screen modal" role="dialog" aria-modal="true" aria-labelledby="complete-title">
+        <div class="card card-complete">
+          <p class="eyebrow gold"><span class="dot"></span>étoile rallumée</p>
+          <h2 id="complete-title" class="card-title">—</h2>
+          <div class="result-gems" id="result-gems"></div>
+          <div class="stats">
+            <div><span class="stat-n" id="stat-gems">0/3</span><span class="stat-l">cristaux</span></div>
+            <div><span class="stat-n" id="stat-steps">0</span><span class="stat-l">pas</span></div>
+          </div>
+          <div class="card-actions row">
+            <button class="btn btn-ghost" id="btn-replay" type="button"><span>Rejouer</span></button>
+            <button class="btn btn-primary" id="btn-next" type="button">
+              <span>Niveau suivant</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ───────────── Sélection de niveau ───────────── -->
+      <section id="levels" class="screen modal" role="dialog" aria-modal="true" aria-labelledby="levels-title">
+        <div class="card card-levels">
+          <header class="settings-head">
+            <div>
+              <p class="eyebrow"><span class="dot"></span>carte des constellations</p>
+              <h2 id="levels-title" class="card-title">Niveaux</h2>
+            </div>
+            <button class="icon-btn" id="btn-levels-close" type="button" aria-label="Fermer">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </header>
+          <div class="level-grid" id="level-grid"></div>
+        </div>
+      </section>
+
+      <!-- ───────────── Crédits ───────────── -->
+      <section id="credits" class="screen modal" role="dialog" aria-modal="true" aria-labelledby="credits-title">
+        <div class="card card-credits">
+          <p class="eyebrow gold"><span class="dot"></span>merci d'avoir joué</p>
+          <h2 id="credits-title" class="card-title">Crédits</h2>
+          <dl class="credits">
+            <div><dt>Conception & développement</dt><dd>Projet MMI 3 — Shine</dd></div>
+            <div><dt>Moteur 3D</dt><dd>three.js</dd></div>
+            <div><dt>Post-traitement</dt><dd>pmndrs/postprocessing · N8AO</dd></div>
+            <div><dt>Son</dt><dd>Synthèse WebAudio, générée en temps réel</dd></div>
+            <div><dt>Inspiration</dt><dd>Captain Toad: Treasure Tracker</dd></div>
+          </dl>
+          <button class="btn btn-primary btn-small" id="btn-credits-close" type="button"><span>Retour</span></button>
+        </div>
+      </section>
+
+      <!-- ───────────── Paramètres ───────────── -->
+      <section id="settings" class="screen modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div class="card card-settings">
+          <header class="settings-head">
+            <div>
+              <p class="eyebrow"><span class="dot"></span>configuration</p>
+              <h2 id="settings-title" class="card-title">Paramètres</h2>
+            </div>
+            <button class="icon-btn" id="btn-settings-close" type="button" aria-label="Fermer les paramètres">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </header>
+
+          <div class="tabs" role="tablist" aria-label="Catégories">
+            <button class="tab is-active" role="tab" id="tab-gfx" data-tab="gfx" aria-selected="true" aria-controls="panel-gfx">Graphismes</button>
+            <button class="tab" role="tab" id="tab-audio" data-tab="audio" aria-selected="false" aria-controls="panel-audio" tabindex="-1">Audio</button>
+            <button class="tab" role="tab" id="tab-keys" data-tab="keys" aria-selected="false" aria-controls="panel-keys" tabindex="-1">Commandes</button>
+            <span class="tab-ink" aria-hidden="true"></span>
+          </div>
+
+          <div class="panels">
+            <div class="panel is-active" role="tabpanel" id="panel-gfx" aria-labelledby="tab-gfx">
+              <p class="set-group">Affichage</p>
+            <label class="set-row" for="set-quality">
+              <span class="set-text"><span class="set-label">Préréglage de qualité</span><span class="set-hint">Auto ajuste en continu selon les performances</span></span>
+              <span class="select"><select id="set-quality"></select></span>
+            </label>
+            <label class="set-row" for="set-resolution">
+              <span class="set-text"><span class="set-label">Résolution de rendu</span><span class="set-hint">Hauteur de rendu interne, indépendante de la fenêtre</span></span>
+              <span class="select"><select id="set-resolution"></select></span>
+            </label>
+            <label class="set-row" for="set-fps">
+              <span class="set-text"><span class="set-label">Limite d'images par seconde</span></span>
+              <span class="select"><select id="set-fps"></select></span>
+            </label>
+            <label class="set-row" for="set-showfps">
+              <span class="set-text"><span class="set-label">Afficher les FPS</span><span class="set-hint">Compteur en jeu (raccourci configurable)</span></span>
+              <span class="switch"><input type="checkbox" id="set-showfps" /><span class="switch-ui" aria-hidden="true"></span></span>
+            </label>
+              <p class="set-group">Effets</p>
+            <label class="set-row" for="set-ao">
+              <span class="set-text"><span class="set-label">Occlusion ambiante</span><span class="set-hint">Ombres de contact entre les blocs</span></span>
+              <span class="switch"><input type="checkbox" id="set-ao" /><span class="switch-ui" aria-hidden="true"></span></span>
+            </label>
+            <label class="set-row" for="set-godrays">
+              <span class="set-text"><span class="set-label">Rayons lumineux</span><span class="set-hint">Faisceaux volumétriques de l'étoile</span></span>
+              <span class="switch"><input type="checkbox" id="set-godrays" /><span class="switch-ui" aria-hidden="true"></span></span>
+            </label>
+            <label class="set-row" for="set-tilt">
+              <span class="set-text"><span class="set-label">Flou miniature</span><span class="set-hint">Effet diorama sur les bords</span></span>
+              <span class="switch"><input type="checkbox" id="set-tilt" /><span class="switch-ui" aria-hidden="true"></span></span>
+            </label>
+            <label class="set-row" for="set-ca">
+              <span class="set-text"><span class="set-label">Aberration chromatique</span></span>
+              <span class="switch"><input type="checkbox" id="set-ca" /><span class="switch-ui" aria-hidden="true"></span></span>
+            </label>
+              <p class="set-live" id="set-live" aria-live="polite">—</p>
+            </div>
+
+            <div class="panel" role="tabpanel" id="panel-audio" aria-labelledby="tab-audio" hidden>
+              <p class="set-group">Volumes</p>
+            <label class="set-row set-row-slider" for="set-vol-master">
+              <span class="set-text"><span class="set-label">Volume général</span></span>
+              <span class="slider"><input type="range" id="set-vol-master" min="0" max="100" step="1" /><output for="set-vol-master" id="set-vol-master-out">0</output></span>
+            </label>
+            <label class="set-row set-row-slider" for="set-vol-music">
+              <span class="set-text"><span class="set-label">Musique d’ambiance</span></span>
+              <span class="slider"><input type="range" id="set-vol-music" min="0" max="100" step="1" /><output for="set-vol-music" id="set-vol-music-out">0</output></span>
+            </label>
+            <label class="set-row set-row-slider" for="set-vol-sfx">
+              <span class="set-text"><span class="set-label">Effets sonores</span></span>
+              <span class="slider"><input type="range" id="set-vol-sfx" min="0" max="100" step="1" /><output for="set-vol-sfx" id="set-vol-sfx-out">0</output></span>
+            </label>
+              <button class="btn btn-ghost btn-small" id="btn-test-sound" type="button"><span>Tester le son</span></button>
+            </div>
+
+            <div class="panel" role="tabpanel" id="panel-keys" aria-labelledby="tab-keys" hidden>
+              <p class="set-group">Clavier <span class="set-group-hint">clique sur une touche pour la changer · Échap pour annuler</span></p>
+              <div class="bindings" id="bindings"></div>
+              <p class="set-group">Manette <span class="set-group-hint" id="pad-status">aucune manette détectée — appuie sur un bouton</span></p>
+              <label class="set-row" for="set-pad-vibration">
+                <span class="set-text"><span class="set-label">Vibrations</span><span class="set-hint">Retour haptique sur les cristaux, l'interrupteur, l'étoile</span></span>
+                <span class="switch"><input type="checkbox" id="set-pad-vibration" /><span class="switch-ui" aria-hidden="true"></span></span>
+              </label>
+              <label class="set-row set-row-slider" for="set-pad-sens">
+                <span class="set-text"><span class="set-label">Sensibilité de la caméra</span></span>
+                <span class="slider"><input type="range" id="set-pad-sens" min="10" max="100" step="1" /><output for="set-pad-sens" id="set-pad-sens-out">0</output></span>
+              </label>
+              <div class="pad-map">
+                <div class="pad-row"><span class="pad-btn">Stick G / Croix</span><span>Déplacer Lumi · naviguer</span></div>
+                <div class="pad-row"><span class="pad-btn">Stick D</span><span>Orbiter / incliner la caméra</span></div>
+                <div class="pad-row"><span class="pad-btn">A</span><span>Valider</span></div>
+                <div class="pad-row"><span class="pad-btn">B</span><span>Retour</span></div>
+                <div class="pad-row"><span class="pad-btn">LB / RB</span><span>Pivoter la caméra · changer d’onglet</span></div>
+                <div class="pad-row"><span class="pad-btn">LT / RT</span><span>Zoom arrière / avant</span></div>
+                <div class="pad-row"><span class="pad-btn">Y</span><span>Recentrer la caméra</span></div>
+                <div class="pad-row"><span class="pad-btn">X</span><span>Recommencer (maintenir)</span></div>
+                <div class="pad-row"><span class="pad-btn">Start</span><span>Pause</span></div>
+              </div>
+              <p class="set-note">Les flèches déplacent toujours Lumi. <kbd>Échap</kbd> ouvre la pause. Clic / tap : se déplacer · glisser : tourner · molette : zoom.</p>
+            </div>
+          </div>
+
+          <footer class="settings-foot">
+            <button class="btn btn-ghost btn-small" id="btn-settings-reset" type="button"><span>Réinitialiser l’onglet</span></button>
+            <button class="btn btn-primary btn-small" id="btn-settings-done" type="button"><span>Terminé</span></button>
+          </footer>
+        </div>
+      </section>
+
+      <div id="perf" class="perf" aria-hidden="true"></div>
+      <div id="fade" class="fade"></div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
