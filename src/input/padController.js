@@ -70,6 +70,11 @@ export class PadController {
     sfx.init();
     const box = this.c.container();
     this.setNavMode(true);
+    if (this.c.dialogue?.isOpen) {
+      if (b === BTN.A) this.c.dialogue.advance();
+      else if (b === BTN.B || b === BTN.START) this.c.dialogue.skip();
+      return;
+    }
     if (box) {
       if (b === BTN.A) {
         if (box.id === 'title' && !box.contains(document.activeElement)) ui.selectMenu(ui.menuIndex);
@@ -87,7 +92,8 @@ export class PadController {
       return;
     }
     if (!this.c.playing()) return;
-    if (b === BTN.START) actions.pause();
+    if (b === BTN.A) actions.interact?.();
+    else if (b === BTN.START) actions.pause();
     else if (b === BTN.LB) actions.rotate(-1);
     else if (b === BTN.RB) actions.rotate(1);
     else if (b === BTN.Y) actions.recenter();

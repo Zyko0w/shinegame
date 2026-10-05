@@ -36,7 +36,12 @@ function createNebula() {
   const mat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,
-    uniforms: { uTime: { value: 0 } },
+    uniforms: {
+      uTime: { value: 0 },
+      uA: { value: new THREE.Color(0.3, 0.11, 0.55) },
+      uB: { value: new THREE.Color(0.04, 0.3, 0.4) },
+      uC: { value: new THREE.Color(0.62, 0.14, 0.36) },
+    },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
       void main() {
@@ -46,6 +51,9 @@ function createNebula() {
     `,
     fragmentShader: /* glsl */ `
       uniform float uTime;
+      uniform vec3 uA;
+      uniform vec3 uB;
+      uniform vec3 uC;
       varying vec3 vDir;
       ${NOISE}
       void main() {
@@ -59,9 +67,9 @@ function createNebula() {
         float lanes = fbm(d * 9.0 + n2);
 
         vec3 col = mix(vec3(0.010, 0.007, 0.026), vec3(0.028, 0.016, 0.060), d.y * 0.5 + 0.5);
-        vec3 violet = vec3(0.30, 0.11, 0.55);
-        vec3 teal = vec3(0.04, 0.30, 0.40);
-        vec3 rose = vec3(0.62, 0.14, 0.36);
+        vec3 violet = uA;
+        vec3 teal = uB;
+        vec3 rose = uC;
 
         float neb = smoothstep(0.42, 0.85, n2) * (0.25 + band * 0.9);
         col += violet * neb * 0.6;
@@ -293,24 +301,43 @@ function createShootingStars() {
   return { lines, update };
 }
 
+// Couleurs de nébuleuse par émotion (teinte dominante, nuages, éclats)
+export const SKY_MOODS = {
+  wonder: [[0.3, 0.11, 0.55], [0.04, 0.3, 0.4], [0.62, 0.14, 0.36]],
+  sad: [[0.08, 0.16, 0.5], [0.03, 0.22, 0.42], [0.25, 0.32, 0.7]],
+  lonely: [[0.12, 0.18, 0.45], [0.02, 0.36, 0.4], [0.35, 0.22, 0.6]],
+  fear: [[0.24, 0.05, 0.42], [0.06, 0.04, 0.22], [0.48, 0.06, 0.42]],
+  bitter: [[0.2, 0.26, 0.08], [0.04, 0.2, 0.14], [0.46, 0.36, 0.08]],
+  anger: [[0.5, 0.07, 0.07], [0.42, 0.16, 0.02], [0.62, 0.05, 0.24]],
+};
+
 // La nébuleuse (fbm 5 octaves × 3, plein écran) coûtait cher à chaque frame :
-// on la précalcule une fois dans une cubemap utilisée comme fond de scène.
-function bakeNebula(renderer, scene) {
+// on la précalcule dans une cubemap utilisée comme fond de scène, et on la
+// recalcule seulement quand l émotion du niveau change (écran masqué).
+function createNebulaBaker(renderer, scene) {
   const nebula = createNebula();
   const target = new THREE.WebGLCubeRenderTarget(1024, { type: THREE.HalfFloatType });
   const cubeCamera = new THREE.CubeCamera(1, 1000, target);
   const bakeScene = new THREE.Scene();
   bakeScene.add(nebula);
-  cubeCamera.update(renderer, bakeScene);
-  nebula.geometry.dispose();
-  nebula.material.dispose();
   scene.background = target.texture;
-  return target;
+  let current = null;
+  return (mood) => {
+    const cols = SKY_MOODS[mood] ?? SKY_MOODS.wonder;
+    if (current === mood) return;
+    current = mood;
+    const u = nebula.material.uniforms;
+    u.uA.value.setRGB(...cols[0]);
+    u.uB.value.setRGB(...cols[1]);
+    u.uC.value.setRGB(...cols[2]);
+    cubeCamera.update(renderer, bakeScene);
+  };
 }
 
 export function createSky(renderer, scene) {
   const group = new THREE.Group();
-  bakeNebula(renderer, scene);
+  const bake = createNebulaBaker(renderer, scene);
+  bake("wonder");
   const stars = createStars(3200);
   const planet = createPlanet();
   const shooting = createShootingStars();
@@ -318,6 +345,7 @@ export function createSky(renderer, scene) {
 
   return {
     group,
+    setMood: bake,
     update(t, dt, camera) {
       group.position.copy(camera.position);
       stars.material.uniforms.uTime.value = t;

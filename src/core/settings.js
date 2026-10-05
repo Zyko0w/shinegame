@@ -14,6 +14,7 @@ export const ACTIONS = [
   { id: 'camRight', label: 'Tourner la caméra ⟳' },
   { id: 'recenter', label: 'Recentrer la caméra' },
   { id: 'restart', label: 'Recommencer le niveau' },
+  { id: 'interact', label: 'Parler / interagir' },
   { id: 'mute', label: 'Couper le son' },
   { id: 'perf', label: 'Afficher les performances' },
 ];
@@ -42,7 +43,8 @@ export const DEFAULTS = {
   effects: { ao: true, godRays: true, tilt: true, aberration: true },
   showFps: false,
   fpsLimit: 0, // 0 = synchro écran
-  volume: { master: 80, music: 60, sfx: 80 },
+  volume: { master: 80, music: 60, sfx: 80, voice: 90 },
+  voice: { human: true },
   gamepad: { vibration: true, sensitivity: 55 },
   bindings: {
     up: 'KeyW',
@@ -53,6 +55,7 @@ export const DEFAULTS = {
     camRight: 'KeyE',
     recenter: 'KeyC',
     restart: 'KeyR',
+    interact: 'Space',
     mute: isFrench ? 'Semicolon' : 'KeyM', // la touche « M » d'un clavier AZERTY
     perf: 'KeyF',
   },

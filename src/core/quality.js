@@ -58,6 +58,10 @@ export class Quality {
     this.failures = new Array(TIERS.length).fill(0);
     this.bannedUntil = new Array(TIERS.length).fill(0);
     this.paused = false; // transitions de niveau, onglet masqué…
+    // Une montée de palier peut recompiler des shaders (AO, AA) : on ne
+    // l'applique qu'à un moment sûr (pause, fondu), jamais en plein jeu.
+    this.canUpgradeNow = () => true;
+    this.pendingTier = null;
     this.refresh();
   }
 
@@ -90,6 +94,7 @@ export class Quality {
 
   set(tier) {
     tier = Math.max(0, Math.min(MAX_TIER, tier));
+    this.pendingTier = null;
     if (tier === this.tier) return;
     this.tier = tier;
     this.refresh();
@@ -98,6 +103,11 @@ export class Quality {
     } catch {
       /* stockage indisponible */
     }
+  }
+
+  // Applique une montée de palier en attente (appelé aux moments sûrs)
+  flush() {
+    if (this.auto && this.pendingTier !== null) this.set(this.pendingTier);
   }
 
   // Appelé à chaque image avec le dt réel
@@ -130,7 +140,10 @@ export class Quality {
     const headroom = gpuKnown && s.gpuMs < budget * 0.55 && s.avgMs < budget * 1.08;
     if (headroom) {
       const next = this.tier + 1;
-      if (++this.goodWindows >= 4 && next <= MAX_TIER && this.clock > this.bannedUntil[next]) this.set(next);
+      if (++this.goodWindows >= 4 && next <= MAX_TIER && this.clock > this.bannedUntil[next]) {
+        if (this.canUpgradeNow()) this.set(next);
+        else this.pendingTier = next;
+      }
     } else this.goodWindows = 0;
   }
 }

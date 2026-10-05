@@ -187,7 +187,7 @@ export class UI {
     this.levels.forEach((def, i) => {
       const p = progress.level(def.id);
       const unlocked = progress.isUnlocked(i);
-      const total = def.objects.join('').split('G').length - 1;
+      const total = [...def.objects, ...(def.under?.objects ?? [])].join('').split('G').length - 1;
       const card = document.createElement('button');
       card.type = 'button';
       card.className = 'level-card';
@@ -259,10 +259,6 @@ export class UI {
   showPause(v) {
     this.setVisible(this.el.pause, v);
     if (v) $('btn-resume').focus({ preventScroll: true });
-  }
-
-  isPauseOpen() {
-    return this.el.pause.classList.contains('is-visible');
   }
 
   fade(on) {
@@ -359,7 +355,7 @@ export class UI {
 
   banner(index, def) {
     const b = this.el.banner;
-    this.el.bannerIndex.textContent = `Niveau ${String(index + 1).padStart(2, '0')}`;
+    this.el.bannerIndex.textContent = def.chapter ?? `Niveau ${String(index + 1).padStart(2, '0')}`;
     this.el.bannerName.textContent = def.name;
     this.el.bannerSub.textContent = def.subtitle;
     b.classList.remove('play');
@@ -373,6 +369,12 @@ export class UI {
     this.setVisible(this.el.complete, v);
     if (!v) return;
     this.el.completeTitle.textContent = def.name;
+    const outro = document.getElementById("outro");
+    outro.classList.toggle("is-empty", !def.outro);
+    if (def.outro) {
+      document.getElementById("outro-text").textContent = `« ${def.outro.text} »`;
+      document.getElementById("outro-who").textContent = def.npcs?.find((n) => n.id === def.outro.who)?.name ?? "";
+    }
     this.el.statGems.textContent = `${gems}/${total}`;
     this.el.statSteps.textContent = steps;
     this.el.btnNext.querySelector('span').textContent = hasNext ? 'Niveau suivant' : 'Retour au titre';
@@ -388,9 +390,5 @@ export class UI {
       requestAnimationFrame(() => s.classList.add('reveal'));
     }
     setTimeout(() => this.el.btnNext.focus({ preventScroll: true }), 400);
-  }
-
-  isCompleteOpen() {
-    return this.el.complete.classList.contains('is-visible');
   }
 }

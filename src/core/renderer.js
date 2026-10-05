@@ -16,7 +16,6 @@ import {
   KernelSize,
   BlendFunction,
 } from 'postprocessing';
-import { N8AOPostPass } from 'n8ao';
 
 // Pipeline (pmndrs/postprocessing, effets fusionnés en un minimum de passes) :
 //   RenderPass → N8AO (occlusion ambiante) → assainissement HDR
@@ -126,15 +125,31 @@ export function createRenderer(canvas, scene, camera) {
   const composer = new EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType, multisampling: 0 });
   composer.addPass(new RenderPass(scene, camera));
 
-  const ao = new N8AOPostPass(scene, camera, window.innerWidth, window.innerHeight);
-  ao.configuration.aoRadius = 0.9;
-  ao.configuration.distanceFalloff = 0.8;
-  ao.configuration.intensity = 3.2;
-  ao.configuration.color = new THREE.Color(0x0b0620);
-  ao.configuration.halfRes = true;
-  ao.configuration.gammaCorrection = false;
-  ao.setQualityMode('Performance');
-  composer.addPass(ao);
+  // Occlusion ambiante écran (N8AO) : chargée à la demande, seulement si un
+  // palier l'active — les machines modestes ne téléchargent jamais ce module.
+  let ao = null;
+  let aoLoading = null;
+  function ensureAO() {
+    if (ao || aoLoading) return aoLoading;
+    aoLoading = import('n8ao').then(({ N8AOPostPass }) => {
+      ao = new N8AOPostPass(scene, camera, window.innerWidth, window.innerHeight);
+      Object.assign(ao.configuration, {
+        aoRadius: 0.9,
+        distanceFalloff: 0.8,
+        intensity: 3.2,
+        color: new THREE.Color(0x0b0620),
+        halfRes: true,
+        gammaCorrection: false,
+      });
+      ao.setQualityMode(state.aoMode);
+      composer.addPass(ao, 1);
+      ao.enabled = state.aoOn;
+      lastSize = '';
+      applySize();
+      return ao;
+    });
+    return aoLoading;
+  }
 
   // Passe d'assainissement HDR (anti NaN/Inf) : désactivée par défaut, la cause
   // (division par la profondeur dans les shaders de points) est corrigée à la source.
@@ -202,15 +217,20 @@ export function createRenderer(canvas, scene, camera) {
   const grade = new GradeEffect();
   composer.addPass(new EffectPass(camera, grade));
 
-  const state = { pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5), tilt: true, aoMode: 'Performance', godRaysOn: true };
+  const state = { pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5), tilt: true, aoMode: 'Performance', aoOn: false, godRaysOn: true, samples: 48, bloomLevels: 6 };
+  let lastSize = '';
 
+  // Ne réalloue les buffers que si la taille ou la densité change vraiment
   function applySize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
+    grade.uniforms.get('uTilt').value = state.tilt ? (w < 720 ? 3 : 5) * state.pixelRatio : 0;
+    const key = `x@`;
+    if (key === lastSize) return;
+    lastSize = key;
     renderer.setPixelRatio(state.pixelRatio);
     renderer.setSize(w, h, false);
     composer.setSize(w, h, false);
-    grade.uniforms.get('uTilt').value = state.tilt ? (w < 720 ? 3 : 5) * state.pixelRatio : 0;
   }
   applySize();
 
@@ -218,24 +238,49 @@ export function createRenderer(canvas, scene, camera) {
     renderer,
     composer,
     sun,
-    effects: { ao, smaa, fxaa, godRays, bloom, grade },
+    effects: { smaa, fxaa, godRays, bloom, grade, get ao() { return ao; } },
     resize: applySize,
+    // Chaque réglage n'est appliqué que s'il change : certains recompilent des
+    // shaders (AO, nombre d'échantillons des god rays) ou réallouent des buffers.
     setQuality({ pixelRatio, tilt, aberration, ao: aoOn, aoMode, godRays: samples, godRaysOn, bloomLevels, aa }) {
       setAA(aa);
       state.pixelRatio = pixelRatio;
       state.tilt = tilt;
       applySize();
       grade.uniforms.get('uCA').value = aberration ? 1 : 0;
-      ao.enabled = aoOn;
-      if (aoOn && state.aoMode !== aoMode) {
-        state.aoMode = aoMode; // recompile les shaders d'AO : seulement au changement
-        ao.setQualityMode(aoMode);
+      state.aoOn = aoOn;
+      if (aoOn) ensureAO();
+      if (ao) {
+        ao.enabled = aoOn;
+        if (aoOn && state.aoMode !== aoMode) ao.setQualityMode(aoMode);
       }
-      godRays.godRaysMaterial.samples = samples;
+      state.aoMode = aoMode;
+      if (state.samples !== samples) godRays.godRaysMaterial.samples = state.samples = samples;
       const fn = godRaysOn ? BlendFunction.SCREEN : BlendFunction.SKIP;
       if (godRays.blendMode.blendFunction !== fn) godRays.blendMode.blendFunction = fn;
       state.godRaysOn = godRaysOn;
-      bloom.mipmapBlurPass.levels = bloomLevels;
+      if (state.bloomLevels !== bloomLevels) bloom.mipmapBlurPass.levels = state.bloomLevels = bloomLevels;
+    },
+    // Préchauffe les shaders en DESSINANT une image avec les objets encore
+    // cachés (dalles de pont, particules…) et la shadow map : sous ANGLE/D3D,
+    // une simple compilation ne suffit pas, la finalisation se fait au premier
+    // dessin (≈ 200 ms de gel en plein jeu). À appeler écran masqué (fondu).
+    warmup(extra = []) {
+      const prev = extra.map((o) => o.visible);
+      extra.forEach((o) => (o.visible = true));
+      // sans culling : tout doit être dessiné, quel que soit le cadrage courant
+      const culled = [];
+      scene.traverse((o) => {
+        if (o.frustumCulled) {
+          o.frustumCulled = false;
+          culled.push(o);
+        }
+      });
+      renderer.shadowMap.needsUpdate = true;
+      composer.render(0);
+      culled.forEach((o) => (o.frustumCulled = true));
+      extra.forEach((o, i) => (o.visible = prev[i]));
+      renderer.shadowMap.needsUpdate = true;
     },
     get godRaysOn() {
       return state.godRaysOn !== false;

@@ -35,7 +35,7 @@ function angleDelta(a, b) {
 
 // Flamme : sphère déformée. uTipDir = 1 → pointe vers le haut (mèche),
 // -1 → pointe vers le bas (corps qui s'effile en queue).
-function flameMaterial({ tipDir = 1, stretch = 0.6, intensity = 1, core, edge, tipColor }) {
+export function flameMaterial({ tipDir = 1, stretch = 0.6, intensity = 1, core, edge, tipColor }) {
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
@@ -254,7 +254,9 @@ export class Player {
       e.position.set(side * 0.042, 0.005, 0.105);
       e.renderOrder = 7;
       const s = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true }));
-      s.position.set(0.25, 0.35, 0.9);
+      // coordonnées dans le repère de l'œil (sphère de rayon 0.02) : reflet
+      // posé sur la surface, en haut à droite de la pupille
+      s.position.set(0.006, 0.008, 0.017);
       s.renderOrder = 8;
       e.add(s);
       return e;
@@ -362,6 +364,9 @@ export class Player {
     this.look = 0;
     this.lookTarget = 0;
     this.waveT = 4;
+    this.locked = false; // trajet en plateforme, retournement… : pas de contrôle
+    this.presence = 1; // 0 = dissous (portail), 1 = visible
+    this.presenceTarget = 1;
     this.onArrive = null;
     this.onStep = null;
   }
@@ -372,6 +377,8 @@ export class Player {
     this.queue.length = 0;
     this.moving = false;
     this.celebrateT = -1;
+    this.locked = false;
+    this.presence = this.presenceTarget = 1;
     level.worldOf(tile, this.goal);
     this.groundY = this.goal.y;
     this.pos.copy(this.goal);
@@ -411,7 +418,7 @@ export class Player {
   }
 
   walk(path) {
-    if (this.celebrateT >= 0) return;
+    if (this.celebrateT >= 0 || this.locked) return;
     this.queue = path.slice();
     if (!this.moving) this.nextSegment();
   }
@@ -434,6 +441,23 @@ export class Player {
     this.segT = 0;
     this.target = next;
     this.moving = true;
+    this.jumping = false;
+    this.targetYaw = Math.atan2(this.to.x - this.from.x, this.to.z - this.from.z);
+    this.onSegment?.(dh);
+  }
+
+  // Saut de tremplin : trajectoire balistique jusqu'à une case lointaine
+  jump(dest) {
+    this.queue.length = 0;
+    this.level.worldOf(this.tile, this.from);
+    this.level.worldOf(dest, this.to);
+    const dist = Math.hypot(this.to.x - this.from.x, this.to.z - this.from.z);
+    this.segDur = 0.75 + dist * 0.09;
+    this.hop = 1.1 + dist * 0.28 + Math.max(0, this.to.y - this.from.y) * 0.6;
+    this.segT = 0;
+    this.target = dest;
+    this.moving = true;
+    this.jumping = true;
     this.targetYaw = Math.atan2(this.to.x - this.from.x, this.to.z - this.from.z);
   }
 
@@ -452,6 +476,35 @@ export class Player {
     this.celebrateT = 0;
   }
 
+  // Entraîné par une plateforme : on décale corps, carotte et sol d'un bloc
+  carry(delta) {
+    this.pos.add(delta);
+    this.goal.add(delta);
+    this.from.add(delta);
+    this.to.add(delta);
+    this.groundY += delta.y;
+    for (const p of this.tailPos) p.add(delta);
+    for (const p of this.tailPrev) p.add(delta);
+  }
+
+  // Change la case logique sans bouger (arrivée d'une plateforme)
+  setTile(tile) {
+    this.tile = tile;
+    this.level.worldOf(tile, this.goal);
+    this.groundY = this.goal.y;
+  }
+
+  // Dissolution / réapparition (portail de retournement)
+  vanish() {
+    this.presenceTarget = 0;
+  }
+
+  appear(instant = false) {
+    this.presenceTarget = 1;
+    if (instant) this.presence = 1;
+    else this.presence = 0;
+  }
+
   /* ───────────── Mise à jour ───────────── */
 
   update(dt, t) {
@@ -464,13 +517,16 @@ export class Player {
     if (this.moving) {
       this.segT += dt / this.segDur;
       const k = Math.min(1, this.segT);
-      const e = k * k * (3 - 2 * k);
+      // pas : départ/arrivée adoucis ; saut : vitesse horizontale constante
+      const e = this.jumping ? k : k * k * (3 - 2 * k);
       this.goal.lerpVectors(this.from, this.to, e);
       this.groundY = this.goal.y;
       this.goal.y += Math.sin(k * Math.PI) * this.hop;
+      this.jumpK = this.jumping ? k : 0;
       if (k >= 1) {
         this.tile = this.target;
-        this.land = this.hop > 0.1 ? 1 : 0.35;
+        this.landedFromJump = this.jumping;
+        this.land = this.jumping ? 1.4 : this.hop > 0.1 ? 1 : 0.35;
         this.onStep?.(this.tile);
         this.onArrive?.(this.tile);
         this.nextSegment();
@@ -514,12 +570,18 @@ export class Player {
       spin = ct < 1.1 ? (ct / 1.1) * Math.PI * 4 : 0;
       if (ct > 1.1 && ct < 1.2) this.land = 1;
     }
+    if (this.talking) floatY += Math.abs(Math.sin(t * 9)) * 0.035;
     this.float.position.y = floatY - this.land * 0.05;
     this.float.rotation.x = THREE.MathUtils.clamp(vFwd * 0.08, -0.35, 0.35);
     this.float.rotation.z = THREE.MathUtils.clamp(-vSide * 0.08, -0.35, 0.35);
+    if (this.jumpK) spin += Math.sin(this.jumpK * Math.PI) * 0.4 + this.jumpK * Math.PI * 2; // vrille en vol
     this.float.rotation.y = spin;
     const stretch = THREE.MathUtils.clamp(this.vel.y * 0.06, -0.15, 0.2) - this.land * 0.14;
-    this.float.scale.set(SCALE * (1 - stretch * 0.5), SCALE * (1 + stretch), SCALE * (1 - stretch * 0.5));
+    this.presence = damp(this.presence, this.presenceTarget, this.presenceTarget ? 7 : 10, dt);
+    const pres = this.presenceTarget ? 1 - Math.pow(1 - this.presence, 2) * (1 + Math.sin(this.presence * 9) * 0.2) : this.presence;
+    const S = SCALE * Math.max(0.001, pres);
+    this.float.scale.set(S * (1 - stretch * 0.5), S * (1 + stretch), S * (1 - stretch * 0.5));
+    this.fx.visible = this.presence > 0.05;
 
     // 5) Flammes : le corps s'étire et se couche derrière le mouvement
     const flicker = 0.9 + Math.sin(t * 14) * 0.04 + Math.sin(t * 23.7) * 0.03 + Math.sin(t * 5.1) * 0.05;

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { getNoiseTexture } from './noiseTexture.js';
 
 // Patchs de shaders sur MeshStandardMaterial (onBeforeCompile) : on garde
 // l'éclairage PBR et les ombres de three, et on y greffe nos effets.
@@ -16,15 +17,16 @@ const COMMON_GLSL = /* glsl */ `
   varying vec3 vWNorm;
 
   float h21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
-  float h31(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
-  float vnoise(vec3 x) {
-    vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 2.0 * f);
-    return mix(
-      mix(mix(h31(i), h31(i + vec3(1,0,0)), f.x), mix(h31(i + vec3(0,1,0)), h31(i + vec3(1,1,0)), f.x), f.y),
-      mix(mix(h31(i + vec3(0,0,1)), h31(i + vec3(1,0,1)), f.x), mix(h31(i + vec3(0,1,1)), h31(i + vec3(1,1,1)), f.x), f.y), f.z);
-  }
-  float fbm3(vec3 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 3; i++) { v += a * vnoise(p); p = p * 2.07 + 3.1; a *= 0.5; } return v * 1.14; }
   vec3 hue(float t) { return 0.5 + 0.5 * cos(6.28318 * (t + vec3(0.0, 0.33, 0.67))); }
+
+  // bruit précalculé (voir noiseTexture.js) + projection planaire selon la face
+  uniform sampler2D uNoise;
+  vec4 noiseAt(vec2 uv) { return texture2D(uNoise, uv); }
+  vec2 faceUV() {
+    vec3 n = abs(vWNorm);
+    if (n.y > 0.6) return vWPos.xz;
+    return n.x > n.z ? vec2(vWPos.z, vWPos.y) : vec2(vWPos.x, vWPos.y);
+  }
 `;
 
 const VERTEX_DECL = /* glsl */ `
@@ -85,10 +87,14 @@ const AO_FRAGMENT = /* glsl */ `
   }
 `;
 
+const noiseUniform = { value: null };
+
 function patch(material, { color = '', emissive = '', key, bakedAO = false }) {
+  noiseUniform.value ??= getNoiseTexture();
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = globalUniforms.uTime;
     shader.uniforms.uBakedAO = globalUniforms.uBakedAO;
+    shader.uniforms.uNoise = noiseUniform;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', VERTEX_DECL + (bakedAO ? AO_VERTEX_DECL : ''))
       .replace('#include <project_vertex>', VERTEX_BODY + (bakedAO ? AO_VERTEX_BODY : ''));
@@ -113,7 +119,7 @@ export function patchTopBlock(material) {
     color: /* glsl */ `
       {
         float isTop = step(0.6, vWNorm.y);
-        float stone = fbm3(vWPos * 3.2);
+        float stone = noiseAt(faceUV() * 0.4).r;
         diffuseColor.rgb *= 0.82 + stone * 0.36;
         float edgeD = max(abs(vOPos.x), abs(vOPos.z));
         diffuseColor.rgb += isTop * smoothstep(0.36, 0.47, edgeD) * 0.05;
@@ -149,7 +155,8 @@ export function patchSideBlock(material) {
     bakedAO: true,
     color: /* glsl */ `
       {
-        float strata = fbm3(vWPos * vec3(2.0, 7.0, 2.0));
+        vec2 fu = faceUV();
+        float strata = noiseAt(vec2(fu.x * 0.25, fu.y * 0.875)).g;
         diffuseColor.rgb *= 0.78 + strata * 0.4;
         diffuseColor.rgb *= 0.72 + 0.28 * smoothstep(-0.2, 3.5, vWPos.y);
       }
@@ -157,10 +164,12 @@ export function patchSideBlock(material) {
     emissive: /* glsl */ `
       {
         float side = 1.0 - step(0.6, abs(vWNorm.y));
-        float n = fbm3(vWPos * 1.6 + vec3(0.0, 0.0, 4.0));
-        float vein = (1.0 - smoothstep(0.0, 0.012, abs(n - 0.5))) * smoothstep(0.5, 0.68, vnoise(vWPos * 0.7 + 11.0));
+        vec2 fu = faceUV();
+        vec4 vn = noiseAt(fu * 0.2 + vec2(0.0, 0.5));
+        float n = vn.a;
+        float vein = vn.b * smoothstep(0.5, 0.68, noiseAt(fu * 0.0875 + 0.37).r);
         float pulse = pow(0.5 + 0.5 * sin(vWPos.y * 2.2 - uTime * 1.1 + n * 9.0), 3.0);
-        vec3 vc = mix(vec3(0.35, 0.85, 1.0), vec3(0.6, 0.35, 1.0), smoothstep(0.3, 0.7, vnoise(vWPos * 0.4)));
+        vec3 vc = mix(vec3(0.35, 0.85, 1.0), vec3(0.6, 0.35, 1.0), smoothstep(0.3, 0.7, noiseAt(fu * 0.05).r));
         totalEmissiveRadiance += side * vein * (0.05 + pulse * 0.55) * vc;
         vec3 V = normalize(vViewPosition);
         float fres = pow(1.0 - abs(dot(normal, V)), 3.0);
@@ -175,12 +184,12 @@ export function patchUnderside(material) {
   return patch(material, {
     key: 'shine-under',
     color: /* glsl */ `
-      diffuseColor.rgb *= 0.7 + fbm3(vWPos * vec3(3.0, 1.2, 3.0)) * 0.6;
+      diffuseColor.rgb *= 0.7 + noiseAt(vec2((vWPos.x + vWPos.z) * 0.375, vWPos.y * 0.15)).g * 0.6;
     `,
     emissive: /* glsl */ `
       {
         float tip = smoothstep(-0.25, -1.0, vOPos.y);
-        float streak = fbm3(vec3(vWPos.x * 6.0, vWPos.y * 1.5 - uTime * 0.3, vWPos.z * 6.0));
+        float streak = noiseAt(vec2((vWPos.x + vWPos.z) * 0.75, vWPos.y * 0.19 - uTime * 0.04)).r;
         totalEmissiveRadiance += vec3(0.38, 0.16, 0.85) * tip * (0.15 + streak * 0.45);
       }
     `,

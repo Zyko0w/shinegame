@@ -44,7 +44,7 @@ export class SettingsPanel {
     for (const [id, key] of Object.entries(fx)) $(id).addEventListener('change', (e) => settings.set(`effects.${key}`, e.target.checked));
 
     // Audio
-    for (const k of ['master', 'music', 'sfx']) {
+    for (const k of ['master', 'music', 'sfx', 'voice']) {
       const input = $(`set-vol-${k}`);
       input.addEventListener('input', () => {
         this.paintSlider(input);
@@ -52,6 +52,7 @@ export class SettingsPanel {
       });
     }
     $('btn-test-sound').addEventListener('click', () => this.onTestSound?.());
+    $('set-voice-human').addEventListener('change', (e) => settings.set('voice.human', e.target.checked));
 
     // Manette
     $('set-pad-vibration').addEventListener('change', (e) => settings.set('gamepad.vibration', e.target.checked));
@@ -180,13 +181,14 @@ export class SettingsPanel {
     $('set-godrays').checked = fx.godRays;
     $('set-tilt').checked = fx.tilt;
     $('set-ca').checked = fx.aberration;
-    for (const k of ['master', 'music', 'sfx']) {
+    for (const k of ['master', 'music', 'sfx', 'voice']) {
       const input = $(`set-vol-${k}`);
       input.value = settings.get(`volume.${k}`);
       this.paintSlider(input);
     }
     for (const a of ACTIONS) this.keyButtons[a.id].textContent = keyLabel(settings.get(`bindings.${a.id}`));
     $('set-pad-vibration').checked = settings.get('gamepad.vibration');
+    $('set-voice-human').checked = settings.get('voice.human');
     $('set-pad-sens').value = settings.get('gamepad.sensitivity');
     this.paintSlider($('set-pad-sens'));
   }
@@ -205,8 +207,13 @@ export class SettingsPanel {
     n.focus();
   }
 
-  updateLive() {
-    if (this.isOpen) $('set-live').textContent = this.getLiveInfo?.() ?? '';
+  // Ligne d'infos en direct (rafraîchie 2×/s, seulement panneau ouvert)
+  updateLive(dt = 1) {
+    if (!this.isOpen) return;
+    this.liveClock = (this.liveClock ?? 0) + dt;
+    if (this.liveClock < 0.5) return;
+    this.liveClock = 0;
+    $('set-live').textContent = this.getLiveInfo?.() ?? '';
   }
 
   get isOpen() {
