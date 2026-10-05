@@ -171,9 +171,32 @@ function closeSettings() {
 }
 
 const frameLimiter = { interval: 0, acc: 0 };
+// Mode illimité : rAF est calé sur la fréquence de l'écran, on enchaîne donc
+// les images via MessageChannel (pas de clamp à 4 ms comme setTimeout).
+// Onglet masqué → retour sur rAF, qui se met en pause tout seul.
+const uncapped = { on: false, started: false, ch: new MessageChannel() };
+function tickUncapped() {
+  if (!uncapped.on) return;
+  frame(performance.now());
+  if (document.hidden) requestAnimationFrame(tickUncapped);
+  else uncapped.ch.port2.postMessage(0);
+}
+uncapped.ch.port1.onmessage = tickUncapped;
+
+function startLoop() {
+  const unlimited = settings.get('fpsLimit') < 0;
+  if (uncapped.started && unlimited === uncapped.on) return;
+  uncapped.started = true;
+  uncapped.on = unlimited;
+  renderer.setAnimationLoop(unlimited ? null : frame);
+  if (unlimited) tickUncapped();
+}
+
 function applyFpsLimit() {
   const l = settings.get('fpsLimit');
-  frameLimiter.interval = l ? 1 / l : 0;
+  frameLimiter.interval = l > 0 ? 1 / l : 0;
+  frameLimiter.acc = 0;
+  if (uncapped.started) startLoop();
 }
 applyFpsLimit();
 
@@ -415,6 +438,7 @@ async function startDialogue(npc) {
   const np = npc.root.getWorldPosition(new THREE.Vector3());
   player.targetYaw = Math.atan2(np.x - lp.x, np.z - lp.z);
   npc.lookAt(lp.x, lp.z);
+  npc.inTalk = true;
 
   const saved = rig.read();
   const savedTarget = rig.target.clone();
@@ -434,6 +458,7 @@ async function startDialogue(npc) {
     else if (who === 'lumi') player.talking = on;
   });
   npc.seen = true;
+  npc.inTalk = false;
   npc.speaking = false;
   player.talking = false;
   dialogue.setCinema(false);
@@ -846,7 +871,7 @@ function frame(timestamp) {
 
 loadLevel(0);
 enterTitle();
-renderer.setAnimationLoop(frame);
+startLoop();
 
 if (import.meta.env.DEV) {
   import('./dev/devtools.js').then(({ installDevtools }) =>

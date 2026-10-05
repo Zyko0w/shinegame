@@ -35,6 +35,8 @@ export const FPS_LIMITS = [
   { id: 60, label: '60 i/s' },
   { id: 120, label: '120 i/s' },
   { id: 144, label: '144 i/s' },
+  { id: 240, label: '240 i/s' },
+  { id: -1, label: 'Illimité' },
 ];
 
 export const DEFAULTS = {
@@ -42,7 +44,7 @@ export const DEFAULTS = {
   resolution: 'auto',
   effects: { ao: true, godRays: true, tilt: true, aberration: true },
   showFps: false,
-  fpsLimit: 0, // 0 = synchro écran
+  fpsLimit: 0, // 0 = synchro écran, -1 = illimité
   volume: { master: 80, music: 60, sfx: 80, voice: 90 },
   voice: { human: true },
   gamepad: { vibration: true, sensitivity: 55 },
