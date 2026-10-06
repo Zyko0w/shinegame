@@ -31,6 +31,7 @@ export const CAST = {
   andra: { voice: 'en-US-AvaMultilingualNeural', rate: '+8%' }, // peur
   betel: { voice: 'de-DE-FlorianMultilingualNeural', rate: '-4%' }, // rancœur
   antar: { voice: 'en-US-BrianMultilingualNeural', rate: '+10%', volume: '+10%' }, // colère
+  alcor: { voice: 'de-DE-SeraphinaMultilingualNeural', rate: '-2%' }, // jalousie
 };
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
