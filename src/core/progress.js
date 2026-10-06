@@ -59,6 +59,16 @@ class Progress {
     return record;
   }
 
+  // Nouveaux niveaux ajoutés après coup : une île terminée débloque toujours
+  // la suivante, même si la sauvegarde date d'une version plus courte du jeu
+  sync(levels) {
+    const before = this.data.unlocked;
+    levels.forEach((l, i) => {
+      if (this.data.levels[l.id]?.done) this.data.unlocked = Math.max(this.data.unlocked, Math.min(i + 2, levels.length));
+    });
+    if (this.data.unlocked !== before) this.save();
+  }
+
   // Vœu fait sur l'île (gardé même si le niveau n'est pas terminé)
   setWish(id, text) {
     this.data.levels[id] = { ...this.level(id), wish: text };

@@ -9,6 +9,8 @@ import { paletteOf } from '../game/moods.js';
 import { mulberry32, hashString } from '../core/random.js';
 import { ease } from '../core/tween.js';
 import { patchTopBlock, patchSideBlock, patchUnderside, patchIridescent } from './materials.js';
+import * as SA from './sanctum.js';
+import { BLOCKING } from '../game/tiles.js';
 
 // Un niveau = une île flottante à une ou deux faces jouables.
 // - Face 0 : le dessus. Face 1 (optionnelle, `def.under`) : la face cachée,
@@ -20,6 +22,11 @@ import { patchTopBlock, patchSideBlock, patchUnderside, patchIridescent } from '
 //   le reflet » (commandes inversées, gérées par main.js) ; les dalles-reflet
 //   (+) n'existent que dans le reflet, les dalles réelles (-) que hors de lui.
 // - Curiosités (H Y Q F N U) : décors interactifs facultatifs ; U = longue-vue.
+// - Grotte (`def.inside`, face 2) : l'intérieur de l'île. S'arrêter sur une
+//   bouche de grotte (E) fait plonger Lumi dedans ; l'E de l'intérieur (puits
+//   de lumière) le ramène à la surface. Une seule de ces faces est affichée.
+// - Sanctuaire : autels (Z, un par émotion, `def.altars`) où poser les gemmes,
+//   forge centrale (*) où naît la Clé du Réveil.
 // Toute la logique (grille, chemins) porte sur la face active.
 
 export const STEP = 0.5; // hauteur d'un demi-bloc
@@ -31,8 +38,6 @@ const DIRS = [
   [0, -1],
 ];
 
-// Objets qui occupent leur case (on ne peut pas la traverser)
-const BLOCKING = new Set(['T', 'V', 'H', 'Y', 'Q', 'F', 'N', 'U', 'X', 'A']);
 const MERGEABLE = new Set(['K', 'R', 'H', 'Y', 'Q', 'F', 'N', 'U', 'X', 'A']);
 // Cases sans colonne de roche : dalles posées dans le vide
 const SLABS = new Set(['=', '+', '-', 'K']);
@@ -75,13 +80,17 @@ function getShared() {
 
 /* ═════════════ Face d'île ═════════════ */
 
+// side : 0 = dessus, 1 = face cachée (retournement), 2 = intérieur (grotte)
 class Face {
-  constructor(level, heights, objects, index) {
+  constructor(level, heights, objects, side) {
     this.level = level;
-    this.index = index;
+    this.side = side;
+    this.index = side;
     this.group = new THREE.Group();
     // la face cachée est montée retournée sous l'île
-    if (index === 1) this.group.rotation.x = Math.PI;
+    if (side === 1) this.group.rotation.x = Math.PI;
+    // l'intérieur n'est affiché que lorsqu'on y descend
+    if (side === 2) this.group.visible = false;
     this.H = heights.length;
     this.W = Math.max(...heights.map((r) => r.length));
     this.tiles = new Array(this.W * this.H).fill(null);
@@ -118,6 +127,7 @@ class Face {
     if (tile.obj === 'S') this.starTile = tile;
     if (tile.obj === 'B') this.buttonTile = tile;
     if (tile.obj === 'O') this.portal = tile;
+    if (tile.obj === 'E') this.cave = tile;
     return tile;
   }
 
@@ -156,7 +166,10 @@ export class Level {
     this.rnd = mulberry32(hashString(def.id));
     this.palette = paletteOf(def.mood); // couleurs du sol, de la végétation… selon l'émotion
     this.disposables = [];
-    this.animated = { gems: [], decor: [], rocks: [], ghosts: [], trees: [], portals: [], platforms: [], trampolines: [], mirrors: [], fires: [] };
+    this.animated = { gems: [], decor: [], rocks: [], ghosts: [], trees: [], portals: [], platforms: [], trampolines: [], mirrors: [], fires: [], caves: [], altars: [] };
+    this.altars = [];
+    this.forge = null;
+    this.key = null;
     this.kit = C.createKit(this.palette); // matériaux des curiosités et du monde-miroir
     this.curios = [];
     this.mirrorSlabs = [];
@@ -168,10 +181,11 @@ export class Level {
 
     this.faces = [new Face(this, def.heights, def.objects, 0)];
     if (def.under) this.faces.push(new Face(this, def.under.heights, def.under.objects, 1));
+    if (def.inside) this.faces.push(new Face(this, def.inside.heights, def.inside.objects, 2));
     this.platforms = (def.platforms ?? []).map((p) => this.createPlatformTiles(p));
     // tremplins : case de départ → case d'arrivée (souvent sur une autre île)
     this.jumps = (def.jumps ?? []).map((j) => {
-      const face = this.faces[j.side ?? 0];
+      const face = this.faceOf(j.side);
       const from = face.tileAt(j.from[0], j.from[1]);
       const to = face.tileAt(j.to[0], j.to[1]);
       from.obj = 'J';
@@ -180,7 +194,7 @@ export class Level {
     });
     // personnages : leur case est occupée (on leur parle depuis une case voisine)
     for (const n of def.npcs ?? []) {
-      const face = this.faces[n.side ?? 0];
+      const face = this.faceOf(n.side);
       const tile = face.tileAt(n.at[0], n.at[1]);
       tile.blocked = true;
       tile.npcDef = n;
@@ -194,6 +208,7 @@ export class Level {
     this.star = null;
 
     for (const f of this.faces) this.buildFace(f);
+    this.buildRays();
     this.buildFloatingRocks();
     this.curioTotal = this.curios.length;
     this.hasMirror = this.animated.mirrors.length > 0;
@@ -210,6 +225,16 @@ export class Level {
 
   get face() {
     return this.faces[this.side];
+  }
+  // Face d'après son numéro dans les définitions (0 dessus, 1 dessous, 2 intérieur)
+  faceOf(side = 0) {
+    return this.faces.find((f) => f.side === side) ?? this.faces[0];
+  }
+  get canFlip() {
+    return this.faces.some((f) => f.side === 1);
+  }
+  get inCave() {
+    return this.face.side === 2;
   }
   get W() {
     return this.face.W;
@@ -262,7 +287,7 @@ export class Level {
   /* ───────────── Construction ───────────── */
 
   createPlatformTiles(def) {
-    const face = this.faces[def.side ?? 0];
+    const face = this.faceOf(def.side);
     const p = { def, face, moving: false };
     p.a = face.addTile({ x: def.from[0], z: def.from[1], h: def.h, obj: '.', platform: p, active: true });
     p.b = face.addTile({ x: def.to[0], z: def.to[1], h: def.h, obj: '.', platform: p, active: false });
@@ -274,7 +299,7 @@ export class Level {
     const S = this.shared;
     const rnd = this.rnd;
     const ground = face.list.filter((t) => !t.bridge && !t.platform);
-    const flipLevel = this.faces.length > 1;
+    const flipLevel = this.canFlip;
     this.flipper.add(face.group);
 
     // Blocs empilés (instanciés) : roche pour les flancs, surface pour le dessus.
@@ -367,6 +392,11 @@ export class Level {
     this.disposables.push(...merged.map((m) => m.geometry));
     for (const p of this.platforms) if (p.face === face) this.buildPlatform(p);
     for (const j of this.jumps) if (j.face === face) this.buildJumpArc(j);
+    if (face.side === 2) {
+      const shell = SA.buildCaveShell(face, rnd, this.palette);
+      face.group.add(shell.group);
+      this.disposables.push(...shell.disposables);
+    }
   }
 
   // Pointillés en arc qui montrent où mène un tremplin
@@ -430,6 +460,15 @@ export class Level {
         prop = P.createStar(this.palette.accent);
         prop.position.copy(pos);
         this.star = prop;
+        if (this.def.door) {
+          const arch = SA.createDoorArch(this.kit.stone ?? this.shared.rockMat);
+          arch.position.copy(pos);
+          const [dx, dz] = this.facing(t);
+          arch.rotation.y = Math.atan2(dx, dz);
+          face.group.add(arch);
+          this.door = arch;
+          this.disposables.push(arch.userData.veilMat);
+        }
         break;
       }
       case 'B': {
@@ -537,11 +576,39 @@ export class Level {
         if (t.obj === 'U') this.buildObservatory(t, prop, pos, [dx, dz]);
         const u = prop.userData;
         if (u.glowMat) this.disposables.push(u.glowMat);
-        const def = (this.def.curios ?? []).find((c) => c.at[0] === t.x && c.at[1] === t.z && (c.side ?? 0) === face.index);
+        const def = (this.def.curios ?? []).find((c) => c.at[0] === t.x && c.at[1] === t.z && (c.side ?? 0) === face.side);
         const curio = { type: t.obj, tile: t, prop, def, found: false, id: `${face.index}:${t.x},${t.z}` };
         curio.name = def?.name ?? C.CURIO_INFO[t.obj].name;
         t.curio = curio;
         this.curios.push(curio);
+        break;
+      }
+      case 'E': {
+        // surface : bouche de grotte ; intérieur : puits de lumière vers la surface
+        prop = face.side === 2 ? SA.createLightShaft(this.palette.accent) : SA.createCaveMouth(this.shared.rockMat, this.palette.accent);
+        prop.position.copy(pos);
+        this.animated.caves.push(prop);
+        this.disposables.push(prop.userData.holeMat ?? prop.userData.beamMat, prop.userData.ringMat ?? prop.userData.holeMat);
+        break;
+      }
+      case 'Z': {
+        const def = (this.def.altars ?? []).find((a) => a.at[0] === t.x && a.at[1] === t.z);
+        const accent = paletteOf(def?.mood).accent;
+        prop = SA.createAltar(this.kit.stone ?? this.shared.rockMat, accent);
+        prop.position.copy(pos);
+        const altar = { tile: t, prop, def, placed: false };
+        t.altar = altar;
+        this.altars.push(altar);
+        this.animated.altars.push(prop);
+        const u = prop.userData;
+        this.disposables.push(u.ringMat, u.ghostMat, u.gemMat);
+        break;
+      }
+      case '*': {
+        prop = SA.createForge(this.kit.stone ?? this.shared.rockMat);
+        prop.position.copy(pos);
+        this.forge = prop;
+        this.disposables.push(prop.userData.glowMat);
         break;
       }
       case '=': {
@@ -831,6 +898,155 @@ export class Level {
     return true;
   }
 
+  /* ───────────── Grotte ───────────── */
+
+  // Bouche de grotte ↔ puits de lumière : bascule sur l'autre face (surface
+  // ou intérieur). L'enchaînement visuel (fondu, chute de Lumi) est géré par
+  // main.js ; ici, on échange seulement la face affichée et active.
+  caveExit(tile) {
+    const to = this.faces.find((f) => f !== tile.layer && f.cave && (f.side === 2 || tile.layer.side === 2));
+    return to?.cave ?? null;
+  }
+
+  enterFace(face) {
+    for (const f of this.faces) f.group.visible = f === face;
+    this.side = this.faces.indexOf(face);
+  }
+
+  // Bouche de grotte qui « aspire » (bref sursaut du tourbillon)
+  pulseCave(tile) {
+    const u = tile.prop?.userData;
+    const mat = u?.holeMat ?? u?.beamMat;
+    if (!mat) return;
+    this.track({ duration: 1.2, onUpdate: (k, raw) => (mat.uniforms.uBoost.value = Math.sin(raw * Math.PI)) });
+  }
+
+  /* ───────────── Sanctuaire ───────────── */
+
+  // Rayons autel → forge (cachés tant que la gemme n'est pas posée)
+  buildRays() {
+    if (!this.forge || !this.altars.length) return;
+    const face = this.altars[0].tile.layer;
+    const center = this.forge.position.clone();
+    center.y += 0.7;
+    for (const a of this.altars) {
+      const from = a.prop.position.clone();
+      from.y += 0.75;
+      a.ray = SA.createRay(from, center, a.prop.userData.tint);
+      a.ray.visible = false;
+      face.group.add(a.ray);
+      this.disposables.push(a.ray.userData.mat);
+    }
+  }
+
+  // Pose la gemme sur son autel : elle descend du ciel, l'autel s'allume
+  placeAltar(altar, onDone) {
+    if (altar.placed) return false;
+    altar.placed = true;
+    const u = altar.prop.userData;
+    u.gem.visible = true;
+    u.gem.position.y = 2.2;
+    u.gem.scale.setScalar(0.01);
+    this.track({
+      duration: 1.1,
+      ease: ease.outCubic,
+      onUpdate: (k) => {
+        u.gem.position.y = 2.2 - 1.45 * k;
+        u.gem.scale.setScalar(Math.max(0.01, k));
+        u.ghostMat.opacity = 0.35 * (1 - k);
+        u.ringMat.opacity = 0.35 + 0.55 * k;
+        u.halo.material.opacity = 0.5 * k;
+      },
+      onComplete: () => {
+        u.ghost.visible = false;
+        if (altar.ray) {
+          altar.ray.visible = true;
+          this.track({ duration: 0.6, onUpdate: (k) => (altar.ray.userData.mat.opacity = 0.55 * k) });
+        }
+        onDone?.();
+      },
+    });
+    return true;
+  }
+
+  get altarsDone() {
+    return this.altars.length > 0 && this.altars.every((a) => a.placed);
+  }
+
+  // Les huit gemmes se fondent dans la forge : la Clé du Réveil apparaît,
+  // s'élève puis file vers la Porte. Renvoie la position de la porte.
+  forgeKey({ onForged, onArrived } = {}) {
+    if (!this.forge || this.key) return;
+    const face = this.altars[0].tile.layer;
+    const center = this.forge.position.clone();
+    center.y += 0.75;
+    const key = SA.createKey();
+    key.position.copy(center);
+    key.scale.setScalar(0.01);
+    face.group.add(key);
+    this.key = key;
+    const ku = key.userData;
+    const fu = this.forge.userData;
+    // 1. les gemmes quittent leurs autels et convergent vers la forge
+    for (const a of this.altars) {
+      const g = a.prop.userData.gem;
+      const start = g.position.clone();
+      const target = center.clone().sub(a.prop.position);
+      this.track({
+        delay: 0.2,
+        duration: 1.6,
+        ease: ease.inCubic,
+        onUpdate: (k) => {
+          g.position.lerpVectors(start, target, k);
+          g.position.y += Math.sin(k * Math.PI) * 0.8;
+          g.scale.setScalar(1 - k * 0.8);
+          a.ray.userData.mat.opacity = 0.55 + k * 0.45;
+        },
+        onComplete: () => {
+          g.visible = false;
+          a.ray.visible = false;
+          a.prop.userData.halo.material.opacity = 0.25;
+        },
+      });
+    }
+    // 2. la clé se forme dans un éclat de lumière
+    this.track({
+      delay: 1.8,
+      duration: 1.4,
+      ease: ease.outBack,
+      onStart: () => onForged?.(center.clone().applyMatrix4(face.group.matrixWorld)),
+      onUpdate: (k) => {
+        key.scale.setScalar(Math.max(0.01, k * 1.4));
+        key.position.y = center.y + k * 0.9;
+        fu.glowMat.opacity = 0.25 + Math.sin(k * Math.PI) * 0.75;
+        fu.halo.material.opacity = 0.15 + Math.sin(k * Math.PI) * 0.6;
+      },
+    });
+    // 3. elle file vers la porte et s'y fond
+    const door = this.starTile ? face.local(this.starTile, new THREE.Vector3()) : center.clone();
+    door.y += 0.9;
+    const from = center.clone();
+    from.y += 0.9;
+    this.track({
+      delay: 3.6,
+      duration: 1.6,
+      ease: ease.inOutCubic,
+      onUpdate: (k) => {
+        key.position.lerpVectors(from, door, k);
+        key.position.y += Math.sin(k * Math.PI) * 1.2;
+        key.scale.setScalar(1.4 - k * 0.6);
+      },
+      onComplete: () => {
+        key.visible = false;
+        if (this.door) {
+          const vm = this.door.userData.veilMat;
+          this.track({ duration: 1.2, onUpdate: (k) => (vm.opacity = 0.12 + 0.5 * Math.sin(k * Math.PI) + 0.2 * k) });
+        }
+        onArrived?.(door.clone().applyMatrix4(face.group.matrixWorld));
+      },
+    });
+  }
+
   /* ───────────── Monde-miroir ───────────── */
 
   // Passe dans le reflet (ou en ressort) : les dalles-reflet apparaissent, les
@@ -1066,6 +1282,20 @@ export class Level {
       this.kit.realLine.opacity = this.mirrored ? pulse : 0.1;
     }
 
+    for (const c of this.animated.caves) {
+      const u = c.userData;
+      if (u.halo) u.halo.material.opacity = 0.28 + Math.sin(t * 2.2) * 0.08;
+      if (u.ring) u.ring.scale.setScalar(1 + Math.sin(t * 2) * 0.05);
+    }
+
+    for (const a of this.animated.altars) {
+      const u = a.userData;
+      u.ghost.rotation.y = t * 0.8;
+      u.ghost.position.y = 0.75 + Math.sin(t * 1.6 + a.position.x) * 0.05;
+      if (u.gem.visible) u.gem.rotation.y += dt * 1.4;
+    }
+    if (this.key?.visible) this.key.rotation.y += dt * 2.2;
+
     for (const tr of this.animated.trampolines) {
       const u = tr.userData;
       if (!this.animating) u.pad.position.y = 0.19 + Math.sin(t * 3) * 0.006;
@@ -1086,12 +1316,20 @@ export class Level {
   }
 
   dispose() {
+    // Toutes les géométries sont libérées : celles partagées entre niveaux
+    // (caches des fabriques) sont simplement renvoyées au GPU au prochain usage.
+    // Les matériaux partagés, eux, restent (sinon recompilation = gel).
     this.root.traverse((o) => {
+      o.geometry?.dispose();
       if (o.isSprite) o.material.dispose();
     });
     for (const d of this.disposables) d.dispose?.();
     for (const npc of this.npcs) npc.dispose();
     this.jumpDotMat?.dispose();
+    if (this.key) {
+      this.key.userData.mat.dispose();
+      this.key.userData.gemMat.dispose();
+    }
     this.kit.dispose();
     if (this.star) {
       this.star.userData.beamMat.dispose();

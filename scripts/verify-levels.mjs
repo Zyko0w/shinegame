@@ -1,12 +1,13 @@
 // Vérifie que chaque niveau est faisable, en simulant ses mécaniques :
 // interrupteur → ponts, plateformes (deux stations), portails (deux faces),
-// monde-miroir (R bascule l'état ; + n'existe que dans le reflet, - hors du reflet).
+// monde-miroir (R bascule l'état ; + n'existe que dans le reflet, - hors du reflet),
+// grottes (E relie la surface à l'intérieur, face 2), autels du sanctuaire
+// (tous accessibles avant que la clé n'ouvre les ponts).
 // L'étoile ne doit pas être accessible sans l'interrupteur / sans miroir
 // s'il y en a un. Chaque curiosité doit avoir une case voisine accessible.
 import { LEVELS } from '../src/game/levels.js';
+import { BLOCKING, CURIOS } from '../src/game/tiles.js';
 
-const BLOCKING = new Set(['T', 'V', 'H', 'Y', 'Q', 'F', 'N', 'U', 'X', 'A']);
-const CURIOS = new Set(['H', 'Y', 'Q', 'F', 'N', 'U']);
 const DIRS = [
   [1, 0],
   [-1, 0],
@@ -34,6 +35,7 @@ function parseFace(def, heights, objects, side, issues) {
 function build(def, issues) {
   const tiles = parseFace(def, def.heights, def.objects, 0, issues);
   if (def.under) for (const [k, v] of parseFace(def, def.under.heights, def.under.objects, 1, issues)) tiles.set(k, v);
+  if (def.inside) for (const [k, v] of parseFace(def, def.inside.heights, def.inside.objects, 2, issues)) tiles.set(k, v);
   const platforms = (def.platforms ?? []).map((p) => {
     const s = p.side ?? 0;
     const a = { side: s, x: p.from[0], z: p.from[1], h: p.h, obj: '.', station: true };
@@ -84,6 +86,10 @@ function reachable({ tiles }, start, { bridgesOn, mirrors = true }) {
     }
     if (c.station) next.push(c.other);
     if (c.jumpTo) next.push(c.jumpTo);
+    if (c.obj === 'E') {
+      const exit = [...tiles.values()].find((t) => t.obj === 'E' && t.side !== c.side);
+      if (exit) next.push(exit);
+    }
     if (c.obj === 'O') {
       const portal = [...tiles.values()].find((t) => t.obj === 'O' && t.side !== c.side);
       if (portal) next.push(portal);
@@ -111,7 +117,14 @@ for (const def of LEVELS) {
     const button = all.find((t) => t.obj === 'B');
     const mirror = all.some((t) => t.obj === 'R');
     if (def.under && all.filter((t) => t.obj === 'O').length !== 2) issues.push('il faut un portail O sur chaque face');
+    if (def.inside && (all.filter((t) => t.obj === 'E').length !== 2 || !all.some((t) => t.obj === 'E' && t.side === 2))) issues.push('il faut une entrée E à la surface et une dans la grotte');
+    const altars = all.filter((t) => t.obj === 'Z');
+    if (altars.length !== (def.altars ?? []).length) issues.push('autels Z et liste altars ne correspondent pas');
+    for (const a of def.altars ?? []) if (!altars.some((t) => t.x === a.at[0] && t.z === a.at[1])) issues.push(`autel ${a.level} sans case Z`);
+    for (const a of def.altars ?? []) if (!LEVELS.some((l) => l.id === a.level)) issues.push(`autel vers une île inconnue (${a.level})`);
     const before = reachable(world, start, { bridgesOn: false });
+    altars.filter((t) => !before.has(t)).forEach((t) => issues.push(`autel (${t.x},${t.z}) inaccessible`));
+    if (altars.length && before.has(star)) issues.push('porte accessible sans la clé');
     if (button && !before.has(button)) issues.push('interrupteur inaccessible');
     if (button && before.has(star)) issues.push("étoile accessible sans l'interrupteur");
     const after = reachable(world, start, { bridgesOn: true });

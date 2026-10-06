@@ -1,6 +1,7 @@
 import { progress } from '../core/progress.js';
 import { islandSVG } from './islandPreview.js';
 import { paletteOf } from '../game/moods.js';
+import { CURIOS, GEMS, countObjects } from '../game/tiles.js';
 
 // Couche DOM : écrans, menu d'accueil, HUD, toasts, bannières. Aucune logique
 // de jeu ici, uniquement de l'affichage piloté par main.js via des callbacks.
@@ -275,7 +276,7 @@ export class UI {
     const palette = paletteOf(def.mood);
     const p = progress.level(def.id);
     const unlocked = progress.isUnlocked(i);
-    const total = [...def.objects, ...(def.under?.objects ?? [])].join('').split('G').length - 1;
+    const total = countObjects(def, GEMS);
     const [chapter] = def.chapter.split('·');
     $('si-chapter').textContent = chapter.trim();
     $('si-emotion').textContent = palette.label;
@@ -284,7 +285,7 @@ export class UI {
     const gems = Array.from({ length: total }, (_, g) => `<span class="gem-slot${g < p.gems ? ' is-filled' : ''}">${GEM_SVG}</span>`).join('');
     $('si-meta').innerHTML = `${gems}<span class="si-state${p.done ? ' done' : ''}">${p.done ? 'gemme récupérée' : unlocked ? 'à explorer' : 'verrouillée'}</span>`;
     // statistiques du niveau, une fois terminé au moins une fois
-    const curioTotal = [...def.objects, ...(def.under?.objects ?? [])].join('').replace(/[^HYQFNU]/g, '').length;
+    const curioTotal = countObjects(def, CURIOS);
     const cell = (label, value) => `<div><dt>${label}</dt><dd>${value}</dd></div>`;
     $('si-stats').innerHTML = p.done
       ? [

@@ -20,7 +20,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { LEVELS } from '../src/game/levels.js';
-import { ELEVEN_MODEL, elevenKey, elevenSpeak } from './eleven.mjs';
+import { ELEVEN_MODEL, elevenKey, elevenSpeak, isFatal } from './eleven.mjs';
 
 // Casting : une voix Edge + un réglage de hauteur / débit par personnage
 export const CAST = {
@@ -35,6 +35,8 @@ export const CAST = {
   betel: { voice: 'de-DE-FlorianMultilingualNeural', rate: '-4%' }, // rancœur
   antar: { voice: 'en-US-BrianMultilingualNeural', rate: '+10%', volume: '+10%' }, // colère
   alcor: { voice: 'de-DE-SeraphinaMultilingualNeural', rate: '-2%' }, // jalousie
+  merope: { voice: 'fr-FR-VivienneMultilingualNeural', rate: '-8%' }, // honte
+  polaris: { voice: 'fr-FR-VivienneMultilingualNeural', rate: '-4%' }, // espoir
 };
 
 // Casting ElevenLabs (prioritaire sur CAST) : identifiant de voix par personnage.
@@ -42,14 +44,17 @@ export const CAST = {
 // Réglages facultatifs : stability (eleven_v3 : 0 = créatif, 0.5 = naturel,
 // 1 = stable), similarity (0–1). Un personnage absent garde sa voix Edge.
 export const ELEVEN = {
-  lumi: { voice: 'EXAVITQu4vr4xnSDxMaL' },
-  orion: { voice: 'JBFqnCBsd6RMkjVDRZzb' },
-  mira: { voice: '...' },
-  lyre: { voice: '...' },
-  andra: { voice: '...' },
-  betel: { voice: '...' },
-  antar: { voice: '...' },
-  alcor: { voice: '...' },
+  // (offre gratuite : voix prédéfinies uniquement, elles parlent français via eleven_v3)
+  lumi: { voice: 'cgSgspJ2msm6clMCkdW9' }, // Jessica : vive, lumineuse
+  orion: { voice: 'pqHfZKP75CvOlQylNhV4' }, // Bill : sage, âgé
+  mira: { voice: 'pFZP5JQG7iQjIQuC4Bku', stability: 0 }, // Lily : veloutée, tristesse
+  lyre: { voice: 'nPczCjzI2devNBz1zQrb' }, // Brian : grave, posé, solitude
+  andra: { voice: 'FGY2WhTYpPnrIDTdsKH5', stability: 0 }, // Laura : nerveuse, peur
+  betel: { voice: 'N2lVS1w4EtoT3dr4eOWO' }, // Callum : voix éraillée, rancœur
+  antar: { voice: 'SOYHLrjzK2X1ezoPC6cr', stability: 0 }, // Harry : féroce, colère
+  alcor: { voice: 'hpp4J3VqNfWAUOO0d1Us' }, // Bella : vive, jalousie
+  merope: { voice: 'XrExE9yKIg1WjnnlVkGX', stability: 0 }, // Matilda : douce, timide, honte
+  polaris: { voice: 'EXAVITQu4vr4xnSDxMaL' }, // Sarah : chaleureuse, rassurante, espoir
 };
 
 const useEdgeOnly = process.argv.includes('--edge');
@@ -143,7 +148,7 @@ for (const line of lines) {
       failed++;
       console.error(`✗ ${line.key} : ${e.message}`);
       // quota épuisé ou clé refusée : inutile d'insister
-      if (/ 40[123] /.test(e.message)) break;
+      if (isFatal(e)) break;
     }
     continue;
   }

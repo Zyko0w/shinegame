@@ -15,6 +15,8 @@ export const EMOTIONS = {
   fear: { color: 0xc59bff, deep: 0x5a2ad0, brow: -0.45, droop: 0, shake: 1, flicker: 1.4, scale: 0.9 },
   bitter: { color: 0xb9d36a, deep: 0x4f7a3a, brow: 0.35, droop: 0.02, shake: 0, flicker: 0.9, scale: 1.05 },
   envy: { color: 0x8af0b8, deep: 0x2fb38a, brow: 0.2, droop: 0, shake: 0, flicker: 1.1, scale: 1.0 },
+  shame: { color: 0xf2a7c8, deep: 0x8a3a7a, brow: -0.3, droop: 0.05, shake: 0.15, flicker: 0.7, scale: 0.95 },
+  hope: { color: 0xfff1c9, deep: 0xffb84a, brow: 0.05, droop: 0, shake: 0, flicker: 1.2, scale: 1.3 },
   anger: { color: 0xff6a3d, deep: 0xff1f4a, brow: 0.55, droop: 0, shake: 0.35, flicker: 2.2, scale: 1.15 },
 };
 

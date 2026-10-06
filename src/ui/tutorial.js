@@ -6,7 +6,9 @@ import { keyLabel, settings } from '../core/settings.js';
 
 const KEY = 'shine:learned';
 const $ = (id) => document.getElementById(id);
-const k = (action) => `<kbd>${keyLabel(settings.get(`bindings.${action}`))}</kbd>`;
+// (libellé échappé : une touche comme « < » casserait le HTML de la fiche)
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const k = (action) => `<kbd>${escapeHtml(keyLabel(settings.get(`bindings.${action}`)))}</kbd>`;
 
 const ICONS = {
   move: '<path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/>',
@@ -18,6 +20,8 @@ const ICONS = {
   trampoline: '<path d="M4 18h16M6 18l2-5h8l2 5"/><path d="M12 13V4M9 7l3-3 3 3"/>',
   mirror: '<path d="M12 3v18"/><path d="M8 8l-4 4 4 4M16 8l4 4-4 4"/>',
   curio: '<path d="M4 11l8-6 8 6v9H4z"/><path d="M10 20v-5h4v5"/>',
+  cave: '<path d="M3 20c0-8 4-14 9-14s9 6 9 14"/><path d="M8 20c0-4 2-7 4-7s4 3 4 7"/><path d="M12 3v3"/>',
+  altar: '<path d="M12 3l4 5-4 6-4-6z"/><path d="M6 17h12M8 17v4h8v-4"/>',
 };
 
 // Contenu des fiches (les touches affichées suivent les réglages du joueur)
@@ -62,6 +66,16 @@ function card(id) {
       return {
         title: 'Curiosités',
         html: `Maisons, moulins, cloches, fontaines, panneaux… Approche-toi et appuie sur ${k('interact')} (ou clique dessus). Elles sont <strong>facultatives</strong>, mais chaque découverte compte dans tes statistiques du niveau.`,
+      };
+    case 'cave':
+      return {
+        title: 'Grotte',
+        html: `Arrête-toi sur l'<strong>entrée de la grotte</strong> : Lumi plonge et atterrit <strong>à l'intérieur de l'île</strong>, une caverne avec ses propres chemins.<br>Pour remonter, arrête-toi dans le <strong>puits de lumière</strong> qui tombe du plafond.`,
+      };
+    case 'altar':
+      return {
+        title: 'Autels des sentiments',
+        html: `Chaque autel attend la <strong>gemme d'une île</strong>. Marche dessus pour l'y déposer.<br>Quand les <strong>huit gemmes</strong> sont réunies, elles forgent la <strong>Clé du Réveil</strong>.`,
       };
     case 'trampoline':
       return {

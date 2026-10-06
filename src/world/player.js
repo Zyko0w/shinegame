@@ -519,6 +519,14 @@ export class Player {
     this.groundY = this.goal.y;
   }
 
+  // Chute depuis le haut (arrivée dans la grotte) : le ressort ramène au sol
+  drop(height) {
+    this.pos.y += height;
+    this.root.position.copy(this.pos);
+    this.root.updateMatrixWorld(true);
+    this.resetTail();
+  }
+
   // Dissolution / réapparition (portail de retournement)
   vanish() {
     this.presenceTarget = 0;

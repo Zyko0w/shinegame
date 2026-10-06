@@ -31,6 +31,10 @@ async function call(path, init = {}) {
   return res;
 }
 
+// Erreur sans espoir de réussite en insistant : clé refusée (401), offre
+// insuffisante (402), interdit (403). Les scripts s'arrêtent net.
+export const isFatal = (e) => / 40[123] /.test(e.message);
+
 // Voix disponibles sur le compte (prédéfinies + ajoutées depuis la Voice Library)
 export async function elevenVoices() {
   const res = await call('/voices');

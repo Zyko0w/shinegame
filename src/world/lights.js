@@ -6,7 +6,8 @@ import * as THREE from 'three';
 export function createLights(scene, renderer) {
   const hemi = new THREE.HemisphereLight(0x8a7dff, 0x120a24, 0.7);
   scene.add(hemi);
-  scene.add(new THREE.AmbientLight(0x2a2050, 0.5));
+  const ambient = new THREE.AmbientLight(0x2a2050, 0.5);
+  scene.add(ambient);
 
   const key = new THREE.DirectionalLight(0xc8d2ff, 1.9);
   key.position.set(-7, 14, 6);
@@ -27,6 +28,14 @@ export function createLights(scene, renderer) {
       hemi.color.setHex(palette.hemi[0]);
       hemi.groundColor.setHex(palette.hemi[1]);
       rim.color.setHex(palette.rim);
+    },
+    // Intérieur de grotte : la lune ne passe plus, seules les lueurs restent
+    setCave(on) {
+      key.intensity = on ? 0.55 : 1.9;
+      hemi.intensity = on ? 0.45 : 0.7;
+      ambient.intensity = on ? 0.35 : 0.5;
+      rim.intensity = on ? 0.5 : 0.9;
+      renderer.shadowMap.needsUpdate = true;
     },
     // Cadre la caméra d'ombre sur le niveau (meilleure résolution utile)
     fitShadow(level) {

@@ -10,7 +10,7 @@
 
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { ELEVEN_MODEL, elevenSpeak, elevenVoices } from './eleven.mjs';
+import { ELEVEN_MODEL, elevenSpeak, elevenVoices, isFatal } from './eleven.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -41,6 +41,8 @@ const outDir = join(root, 'audition');
 const tmp = join(tmpdir(), 'shine-audition');
 mkdirSync(outDir, { recursive: true });
 
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
 const page = (title, intro, rows) =>
   `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
 <style>
@@ -70,14 +72,15 @@ if (process.argv.includes('--eleven')) {
       console.log(`✓ ${v.name.padEnd(28)} ${v.id}`);
     } catch (e) {
       console.error(`✗ ${v.name} : ${e.message}`);
-      if (/ 40[123] /.test(e.message)) break;
+      if (isFatal(e)) break;
     }
   }
   const rows = voices
     .filter((v) => existsSync(join(dir, `${v.id}.mp3`)))
     .map((v) => {
       const tags = [v.category, v.labels.gender, v.labels.age, v.labels.accent, v.labels.description ?? v.labels.descriptive].filter(Boolean).join(' · ');
-      return `<li><div><strong>${v.name}</strong> <small>${tags}</small><code>${v.id}</code></div><audio controls preload="none" src="/audition/eleven/${v.id}.mp3"></audio></li>`;
+      const id = encodeURIComponent(v.id);
+      return `<li><div><strong>${esc(v.name)}</strong> <small>${esc(tags)}</small><code>${esc(v.id)}</code></div><audio controls preload="none" src="/audition/eleven/${id}.mp3"></audio></li>`;
     })
     .join('\n');
   writeFileSync(
@@ -122,15 +125,10 @@ const rows = results
   .join('\n');
 writeFileSync(
   join(root, 'audition.html'),
-  `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Audition des voix</title>
-<style>
-body{margin:0;padding:32px 16px;background:#0b0918;color:#efeaff;font:15px/1.5 system-ui,sans-serif}
-main{max-width:760px;margin:auto}h1{margin:0 0 6px}p{color:#b9b0dd}
-ul{list-style:none;padding:0;display:grid;gap:10px}
-li{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 16px;border:1px solid #2c2650;border-radius:12px;background:#141029}
-small{color:#8f86c4;margin-left:6px}code{display:block;font-size:12px;color:#79f2ff;margin-top:2px}audio{flex:none;width:300px;max-width:50vw}
-</style></head><body><main><h1>Audition des voix</h1>
-<p>Même réplique, sans aucun réglage de hauteur. Choisis une voix par personnage, puis indique-la dans <code>CAST</code> (scripts/generate-voices.mjs) et lance <code>npm run voices</code>.</p>
-<ul>${rows}</ul></main></body></html>`,
+  page(
+    'Audition des voix',
+    'Même réplique, sans aucun réglage de hauteur. Choisis une voix par personnage, puis indique-la dans <code>CAST</code> (scripts/generate-voices.mjs) et lance <code>npm run voices</code>.',
+    rows,
+  ),
 );
 console.log(`\n${results.length}/${CANDIDATES.length} voix générées → ouvre http://localhost:5173/audition.html`);

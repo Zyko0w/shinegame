@@ -1,198 +1,254 @@
 {
   "vega/mira/l4": {
     "file": "voices/vega/mira-l4.mp3",
-    "hash": "d4ff007e0111"
+    "hash": "35e89b2678f1"
   },
   "vega/mira/r0": {
     "file": "voices/vega/mira-r0.mp3",
-    "hash": "b4ea9a68f290"
+    "hash": "be6d403041ec"
   },
   "lyra/lyre/r0": {
     "file": "voices/lyra/lyre-r0.mp3",
-    "hash": "bad18294b361"
+    "hash": "0e3f27b9e27a"
   },
   "andromede/andra/l4": {
     "file": "voices/andromede/andra-l4.mp3",
-    "hash": "26e45447c2ef"
+    "hash": "e5bbf72db6ea"
   },
   "andromede/andra/r0": {
     "file": "voices/andromede/andra-r0.mp3",
-    "hash": "75d035fc823c"
+    "hash": "b142804b9efc"
   },
   "betelgeuse/betel/l4": {
     "file": "voices/betelgeuse/betel-l4.mp3",
-    "hash": "df639134c2d6"
+    "hash": "5590f10a87a1"
   },
   "betelgeuse/betel/r0": {
     "file": "voices/betelgeuse/betel-r0.mp3",
-    "hash": "ccc7cdf25d7e"
+    "hash": "1cfbf39a7e35"
   },
   "antares/antar/l2": {
     "file": "voices/antares/antar-l2.mp3",
-    "hash": "028d7c47dd3c"
+    "hash": "05ffd989fa9f"
   },
   "antares/antar/r0": {
     "file": "voices/antares/antar-r0.mp3",
-    "hash": "3edc68fac350"
+    "hash": "2ef196e8d1d7"
   },
   "vega/mira/l0": {
     "file": "voices/vega/mira-l0.mp3",
-    "hash": "8d5cd674a66e"
+    "hash": "c116c2ee659e"
   },
   "vega/mira/l3": {
     "file": "voices/vega/mira-l3.mp3",
-    "hash": "e66e1f326aec"
+    "hash": "8f08f3d3379a"
   },
   "lyra/lyre/l3": {
     "file": "voices/lyra/lyre-l3.mp3",
-    "hash": "76740277922e"
+    "hash": "9071b03b3afa"
   },
   "andromede/andra/l3": {
     "file": "voices/andromede/andra-l3.mp3",
-    "hash": "80d4746f6630"
+    "hash": "d98784ed44bb"
   },
   "antares/antar/l3": {
     "file": "voices/antares/antar-l3.mp3",
-    "hash": "fb3eb8cb90bf"
+    "hash": "3aa508c0c860"
   },
   "orion/orion/l0": {
     "file": "voices/orion/orion-l0.mp3",
-    "hash": "8ba657660832"
+    "hash": "71bdfe80976a"
   },
   "orion/orion/l1": {
     "file": "voices/orion/orion-l1.mp3",
-    "hash": "028ea74b249c"
+    "hash": "8f4523535685"
   },
   "orion/orion/l2": {
     "file": "voices/orion/orion-l2.mp3",
-    "hash": "31e0f7ac3b8c"
+    "hash": "baf2b1545152"
   },
   "orion/orion/l3": {
     "file": "voices/orion/orion-l3.mp3",
-    "hash": "5aa4c9451466"
+    "hash": "760184f5d779"
   },
   "orion/orion/l4": {
     "file": "voices/orion/orion-l4.mp3",
-    "hash": "8e80543330b1"
+    "hash": "46567d71d1e9"
   },
   "orion/orion/r0": {
     "file": "voices/orion/orion-r0.mp3",
-    "hash": "f25536871b4c"
+    "hash": "1bdb5640d23b"
   },
   "orion/outro": {
     "file": "voices/orion/outro.mp3",
-    "hash": "7c3723ac2588"
+    "hash": "7346a3244b43"
   },
   "vega/mira/l1": {
     "file": "voices/vega/mira-l1.mp3",
-    "hash": "6917b1115c03"
+    "hash": "57878da0e090"
   },
   "vega/mira/l2": {
     "file": "voices/vega/mira-l2.mp3",
-    "hash": "e622b1134e9a"
+    "hash": "ad3fca6d4749"
   },
   "vega/outro": {
     "file": "voices/vega/outro.mp3",
-    "hash": "94f51dfb9381"
+    "hash": "bec608ffc8f8"
   },
   "lyra/lyre/l0": {
     "file": "voices/lyra/lyre-l0.mp3",
-    "hash": "41244b342955"
+    "hash": "379e691ded77"
   },
   "lyra/lyre/l1": {
     "file": "voices/lyra/lyre-l1.mp3",
-    "hash": "4f327de89a23"
+    "hash": "7bd4726fcb92"
   },
   "lyra/lyre/l2": {
     "file": "voices/lyra/lyre-l2.mp3",
-    "hash": "533c44c1bb54"
+    "hash": "d2bbc8cf8a5c"
   },
   "lyra/lyre/l4": {
     "file": "voices/lyra/lyre-l4.mp3",
-    "hash": "696c5f23be78"
+    "hash": "7e44dc57e065"
   },
   "lyra/outro": {
     "file": "voices/lyra/outro.mp3",
-    "hash": "2846fac1248e"
+    "hash": "397b3416d590"
   },
   "andromede/andra/l0": {
     "file": "voices/andromede/andra-l0.mp3",
-    "hash": "b91bb451a034"
+    "hash": "1dd63d909c86"
   },
   "andromede/andra/l1": {
     "file": "voices/andromede/andra-l1.mp3",
-    "hash": "a0130b2b8251"
+    "hash": "39c7ad529ec0"
   },
   "andromede/andra/l2": {
     "file": "voices/andromede/andra-l2.mp3",
-    "hash": "7eca368ad503"
+    "hash": "836b73cd52e1"
   },
   "andromede/outro": {
     "file": "voices/andromede/outro.mp3",
-    "hash": "2c25441d203d"
+    "hash": "94b27bf89f9c"
   },
   "betelgeuse/betel/l0": {
     "file": "voices/betelgeuse/betel-l0.mp3",
-    "hash": "60de56618e2f"
+    "hash": "745a392ab5f6"
   },
   "betelgeuse/betel/l1": {
     "file": "voices/betelgeuse/betel-l1.mp3",
-    "hash": "fd43a39b5d74"
+    "hash": "5e89d0acd24e"
   },
   "betelgeuse/betel/l2": {
     "file": "voices/betelgeuse/betel-l2.mp3",
-    "hash": "94df6a4f4122"
+    "hash": "88fc78970061"
   },
   "betelgeuse/betel/l3": {
     "file": "voices/betelgeuse/betel-l3.mp3",
-    "hash": "7f6f02632b45"
+    "hash": "25c8198a87f1"
   },
   "betelgeuse/outro": {
     "file": "voices/betelgeuse/outro.mp3",
-    "hash": "e1ebc90b1edd"
+    "hash": "ccdd4b1588ac"
   },
   "antares/antar/l0": {
     "file": "voices/antares/antar-l0.mp3",
-    "hash": "a355a505c1d2"
+    "hash": "e5bc0bcd1a30"
   },
   "antares/antar/l1": {
     "file": "voices/antares/antar-l1.mp3",
-    "hash": "76a415a47f42"
+    "hash": "8abe6da203e7"
   },
   "antares/antar/l4": {
     "file": "voices/antares/antar-l4.mp3",
-    "hash": "0d60b894bde8"
+    "hash": "66ce9342adb7"
   },
   "antares/outro": {
     "file": "voices/antares/outro.mp3",
-    "hash": "2a4e600709a2"
+    "hash": "414a0475a291"
   },
   "alcor/alcor/l3": {
     "file": "voices/alcor/alcor-l3.mp3",
-    "hash": "1ea074dc466b"
+    "hash": "db9ef614b82c"
   },
   "alcor/alcor/l0": {
     "file": "voices/alcor/alcor-l0.mp3",
-    "hash": "1586fe3c61a9"
+    "hash": "99f21929d827"
   },
   "alcor/alcor/l1": {
     "file": "voices/alcor/alcor-l1.mp3",
-    "hash": "f8776381bf99"
+    "hash": "a88e827a4c9a"
   },
   "alcor/alcor/l2": {
     "file": "voices/alcor/alcor-l2.mp3",
-    "hash": "535057c5394a"
+    "hash": "0810bcc78845"
   },
   "alcor/alcor/l4": {
     "file": "voices/alcor/alcor-l4.mp3",
-    "hash": "f7f5427fe9fe"
+    "hash": "afc1b511f7da"
   },
   "alcor/alcor/r0": {
     "file": "voices/alcor/alcor-r0.mp3",
-    "hash": "2c1cdbd6b034"
+    "hash": "7d2eb9828740"
   },
   "alcor/outro": {
     "file": "voices/alcor/outro.mp3",
-    "hash": "a3a9d0a95d6c"
+    "hash": "7f2855b007e5"
+  },
+  "merope/merope/l0": {
+    "file": "voices/merope/merope-l0.mp3",
+    "hash": "690406b9066e"
+  },
+  "merope/merope/l1": {
+    "file": "voices/merope/merope-l1.mp3",
+    "hash": "fd8f5d73b37b"
+  },
+  "merope/merope/l2": {
+    "file": "voices/merope/merope-l2.mp3",
+    "hash": "ba0b7bad5775"
+  },
+  "merope/merope/l3": {
+    "file": "voices/merope/merope-l3.mp3",
+    "hash": "a7f71607214e"
+  },
+  "merope/merope/l4": {
+    "file": "voices/merope/merope-l4.mp3",
+    "hash": "56421d133c7f"
+  },
+  "merope/merope/r0": {
+    "file": "voices/merope/merope-r0.mp3",
+    "hash": "ae463f57e9b4"
+  },
+  "merope/outro": {
+    "file": "voices/merope/outro.mp3",
+    "hash": "19c18b571e26"
+  },
+  "passerelle/polaris/l0": {
+    "file": "voices/passerelle/polaris-l0.mp3",
+    "hash": "5cbe21169bc9"
+  },
+  "passerelle/polaris/l1": {
+    "file": "voices/passerelle/polaris-l1.mp3",
+    "hash": "3e8ad0d17e59"
+  },
+  "passerelle/polaris/l2": {
+    "file": "voices/passerelle/polaris-l2.mp3",
+    "hash": "7b61530cc19b"
+  },
+  "passerelle/polaris/l3": {
+    "file": "voices/passerelle/polaris-l3.mp3",
+    "hash": "42a9ed172022"
+  },
+  "passerelle/polaris/l4": {
+    "file": "voices/passerelle/polaris-l4.mp3",
+    "hash": "c90f23f9dd99"
+  },
+  "passerelle/polaris/r0": {
+    "file": "voices/passerelle/polaris-r0.mp3",
+    "hash": "4332ecd8bd9d"
+  },
+  "passerelle/outro": {
+    "file": "voices/passerelle/outro.mp3",
+    "hash": "ee084a6f3e8c"
   }
 }

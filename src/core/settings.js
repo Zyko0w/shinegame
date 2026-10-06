@@ -73,7 +73,9 @@ function merge(base, extra) {
   for (const k of Object.keys(out)) {
     if (!(k in extra)) continue;
     if (out[k] && typeof out[k] === 'object' && !Array.isArray(out[k])) out[k] = merge(out[k], extra[k]);
-    else out[k] = extra[k];
+    // valeur sauvegardée d'un autre type (stockage modifié ou corrompu) : défaut
+    // (`quality` vaut 'auto' ou un numéro de palier)
+    else if (typeof extra[k] === typeof out[k] || k === 'quality') out[k] = extra[k];
   }
   return out;
 }

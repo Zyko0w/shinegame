@@ -467,6 +467,37 @@ kbd {
 }
 .fade.is-on { opacity: 1; pointer-events: auto; }
 
+/* Réveil (fin du jeu) : la scène se fond dans une lumière d'aube */
+
+.awake {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 0 var(--gutter);
+  text-align: center;
+  color: #3a2a4a;
+  background: radial-gradient(circle at 50% 45%, #fffaf0 0%, #ffe9d2 45%, #f4c9dc 100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 2.4s ease;
+}
+.awake.is-on { opacity: 1; pointer-events: auto; cursor: pointer; }
+.awake p { opacity: 0; transform: translateY(8px); }
+.awake.is-on p { animation: awake-in 1.6s var(--ease-out) var(--d) forwards; }
+.awake-line { font-size: clamp(16px, 2.2vw, 22px); color: rgba(58, 42, 74, 0.75); }
+.awake-title { font-family: var(--f-display); font-size: clamp(30px, 6vw, 64px); font-weight: 700; letter-spacing: -0.01em; }
+.awake-hint { margin-top: 18px; font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(58, 42, 74, 0.5); }
+@keyframes awake-in { to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .awake { transition-duration: 0.3s; }
+  .awake.is-on p { animation-duration: 0.01s; }
+}
+
 /* ───────────────── Keyframes ───────────────── */
 
 @keyframes letter-in { to { opacity: 1; transform: none; } }

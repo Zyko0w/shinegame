@@ -4,8 +4,9 @@
 // perdu·e entre ses sentiments. Lumi est sa dernière petite flamme, la part
 // d'elle qui veut encore ouvrir les yeux. Chaque île est une émotion, gardée
 // par son esprit ; au bout de chaque île brille la Gemme de cette émotion.
-// Une fois toutes les gemmes réunies, on les pose dans la Porte du Réveil
-// (dernier niveau, à venir) — et la personne se réveille.
+// Une fois toutes les gemmes réunies, on les pose sur les autels de la
+// Passerelle (dernier niveau) : elles forgent la Clé du Réveil, qui ouvre la
+// Porte du Réveil — et la personne se réveille.
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // Format des niveaux
@@ -25,7 +26,13 @@
 //   H = maison visitable  Y = moulin  Q = cloche  F = fontaine  N = panneau
 //   X = feu de camp  A = tente (décor des plateformes d'observation, bloquent la case)
 //   U = longue-vue (point panoramique : `view` = constellation / planète observée)
+//   E = entrée de grotte (surface) / puits de lumière (intérieur) : s'y arrêter
+//       fait passer de l'une à l'autre
+//   Z = autel d'une gemme (sanctuaire, voir `altars`)   * = forge de la clé
 // under     : face cachée { heights, objects } (vue une fois l'île retournée).
+// inside    : intérieur de l'île { heights, objects } (grotte), side = 2.
+// altars    : [{ at, level, mood, name }] autel → île dont il attend la gemme.
+// door      : la gemme de fin est la Porte du Réveil (arche) ; final : fin du jeu.
 // platforms : [{ side, from: [x, z], to: [x, z], h }] plateforme mobile.
 // jumps     : [{ side, from: [x, z], to: [x, z] }] tremplin (case de départ → arrivée).
 // npcs      : [{ id, at: [x, z], side, name, emotion, voice, lines, repeat }]
@@ -528,6 +535,167 @@ export const LEVELS = [
       start: 'Traverse le portique-miroir : dans le reflet, des dalles d’argent apparaissent… mais tes commandes s’inversent.',
       mirror: 'Dans le reflet ! Gauche et droite, avant et arrière sont inversés.',
       unmirror: 'Retour du bon côté du miroir : les dalles dorées sont revenues.',
+    },
+  },
+  {
+    id: 'merope',
+    name: 'Grottes de Mérope',
+    chapter: 'Chapitre VII · La Honte',
+    subtitle: 'Ce qu’on cache au fond de soi',
+    mood: 'shame',
+    heights: [
+      '..1122....',
+      '.0112233..',
+      '0001123443',
+      '00..1.3344',
+      '000...33..',
+      '.00.......',
+    ],
+    objects: [
+      '..M..T....',
+      '.N.....L..',
+      'P.....G..E',
+      '.G....C...',
+      '..F...M...',
+      '.H........',
+    ],
+    inside: {
+      heights: [
+        '3332.......',
+        '3.32.....55',
+        '3332.....5.',
+        '..21.....4.',
+        '..10000..3.',
+        '.000000..2.',
+        '.000011221.',
+        '..00.......',
+      ],
+      objects: [
+        'E..L.......',
+        '..........S',
+        'C.G........',
+        '...........',
+        '..M...G....',
+        '.G....V..G.',
+        '.B..Q.==...',
+        '..G........',
+      ],
+    },
+    curios: [
+      {
+        at: [1, 5],
+        name: 'la maison de Mérope',
+        lines: [
+          { who: 'lumi', text: 'Les volets sont fermés en plein jour. Et tous les portraits sont tournés contre le mur.' },
+          { who: 'lumi', text: 'Sur l’un d’eux, une petite fille qui rit, la bouche pleine de gâteau.' },
+          { who: 'lumi', text: 'Pourquoi cacher un sourire pareil ?' },
+        ],
+      },
+      { at: [1, 1], name: 'le panneau', text: '« Grottes de Mérope. Descente libre. Remontée par le puits de lumière. »' },
+      {
+        at: [2, 4],
+        name: 'la source voilée',
+        wishes: ['Oser se montrer telle qu’elle est', 'Se pardonner ses erreurs', 'Qu’on la regarde sans la juger'],
+        text: 'L’eau trouble s’éclaircit d’un coup. Au fond, ton reflet te sourit.',
+      },
+      {
+        at: [4, 6],
+        side: 2,
+        name: 'la cloche des profondeurs',
+        text: 'La cloche résonne dans toute la grotte. L’écho revient plus doux, comme une voix qui pardonne.',
+      },
+    ],
+    npcs: [
+      {
+        id: 'merope',
+        name: 'Mérope',
+        emotion: 'shame',
+        at: [8, 3],
+        voice: { pitch: 1.15, rate: 0.9, voiceIndex: 1 },
+        lines: [
+          { who: 'merope', text: 'Ne me regarde pas… S’il te plaît. Je préfère qu’on ne me voie pas.' },
+          { who: 'merope', text: 'Je suis sa Honte. Tout ce qu’elle n’ose pas montrer, elle l’enfouit au fond d’elle.' },
+          { who: 'merope', text: 'Ma gemme est tombée tout en bas, dans la grotte. Là où personne ne descend.' },
+          { who: 'lumi', text: 'Alors j’y descends. Ce qui est caché mérite aussi un peu de lumière.' },
+          { who: 'merope', text: 'Arrête-toi sur l’entrée de la grotte… Et pour remonter, cherche le puits de lumière.' },
+        ],
+        repeat: [{ who: 'merope', text: 'La grotte t’attend… Moi, je reste là, derrière mes mains.' }],
+      },
+    ],
+    outro: { who: 'merope', text: 'Tu l’as remontée à la lumière… Elle n’est pas si laide, finalement. Elle brille, même.' },
+    hints: {
+      start: 'L’entrée de la grotte est en haut de la colline. Arrête-toi dessus pour y descendre.',
+      cave: 'Te voilà au cœur de l’île. Le puits de lumière te ramène à la surface.',
+      surface: 'De retour à la surface.',
+      button: 'Des dalles de lumière enjambent le gouffre…',
+    },
+  },
+  {
+    id: 'passerelle',
+    name: 'La Passerelle',
+    chapter: 'Épilogue · Le Réveil',
+    subtitle: 'Le sanctuaire des sentiments',
+    mood: 'dawn',
+    door: true,
+    final: true,
+    heights: [
+      '....444....',
+      '....444....',
+      '.....3.....',
+      '.....2.....',
+      '..1111111..',
+      '.111111111.',
+      '.111111111.',
+      '.111111111.',
+      '.111111111.',
+      '..1111111..',
+      '...00000...',
+    ],
+    objects: [
+      '....LSL....',
+      '...........',
+      '.....=.....',
+      '.....=.....',
+      '...Z...Z...',
+      '.T.......T.',
+      '.Z...*...Z.',
+      '..M.....C..',
+      '.Z.......Z.',
+      '...Z...Z...',
+      '.....PN....',
+    ],
+    altars: [
+      { at: [3, 4], level: 'orion', mood: 'wonder', name: 'l’Émerveillement' },
+      { at: [7, 4], level: 'vega', mood: 'sad', name: 'la Tristesse' },
+      { at: [9, 6], level: 'lyra', mood: 'lonely', name: 'la Solitude' },
+      { at: [9, 8], level: 'andromede', mood: 'fear', name: 'la Peur' },
+      { at: [7, 9], level: 'betelgeuse', mood: 'bitter', name: 'la Rancœur' },
+      { at: [3, 9], level: 'antares', mood: 'anger', name: 'la Colère' },
+      { at: [1, 8], level: 'alcor', mood: 'envy', name: 'la Jalousie' },
+      { at: [1, 6], level: 'merope', mood: 'shame', name: 'la Honte' },
+    ],
+    curios: [{ at: [6, 10], name: 'le panneau', text: '« La Passerelle. Ici, chaque sentiment a sa place. »' }],
+    npcs: [
+      {
+        id: 'polaris',
+        name: 'Polaris, l’Espoir',
+        emotion: 'hope',
+        at: [4, 10],
+        voice: { pitch: 1.05, rate: 0.95, voiceIndex: 0 },
+        lines: [
+          { who: 'polaris', text: 'Te voilà enfin, petite flamme. Je suis Polaris, son Espoir. Celle qui n’a jamais cessé d’attendre.' },
+          { who: 'polaris', text: 'Voici la Passerelle : le seuil entre son sommeil et son réveil.' },
+          { who: 'polaris', text: 'Pose chaque gemme sur son autel. Il les faut toutes : même la peur, même la colère.' },
+          { who: 'lumi', text: 'Même la honte ? Même la jalousie ?' },
+          { who: 'polaris', text: 'Surtout elles. Ensemble, elles forgeront la clé de la Porte du Réveil.' },
+        ],
+        repeat: [{ who: 'polaris', text: 'Chaque autel attend sa gemme. Aucun sentiment n’est de trop.' }],
+      },
+    ],
+    outro: { who: 'polaris', text: 'Elle ouvre les yeux… Merci, petite flamme. Tu étais la part d’elle qui voulait se réveiller.' },
+    hints: {
+      start: 'Marche sur chaque autel pour y déposer la gemme de son île.',
+      key: 'La Clé du Réveil ouvre la Porte. Un escalier de lumière se forme…',
     },
   },
 ];

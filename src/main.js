@@ -84,6 +84,7 @@ const game = {
   time: 0, // secondes de jeu effectif (hors pauses, dialogues, fiches)
   found: new Set(), // curiosités découvertes pendant cette partie
 };
+progress.sync(LEVELS);
 const isWide = () => window.innerWidth > 720;
 const playing = () => game.state === 'play';
 
@@ -261,6 +262,9 @@ function loadLevel(index) {
   game.time = 0;
   game.found = new Set();
   mirrorHold = false;
+  altarWarned.clear();
+  lights.setCave(false);
+  sky.group.visible = true;
   const level = new Level(LEVELS[index], tweens);
   game.level = level;
   scene.add(level.root);
@@ -424,14 +428,16 @@ player.onArrive = (tile) => {
   if (tile.obj === 'G' && !tile.collected) collectGem(tile);
   if (tile.obj === 'B' && game.level.pressButton()) pressButton();
   if (tile.obj === 'S' && playing()) completeLevel(tile);
+  if (tile.obj === 'Z' && playing()) placeAltar(tile);
   // mécaniques déclenchées seulement quand Lumi s'arrête sur la case
   const stopped = player.queue.length === 0 && playing();
   if (stopped && tile.platform) ridePlatform(tile);
   if (stopped && tile.obj === 'O') flipIsland(tile);
   if (stopped && tile.jumpTo) launchJump(tile);
+  if (stopped && tile.obj === 'E') enterCave(tile);
   if (player.landedFromJump) player.locked = false;
   // personnage voisin : on lui parle si on venait pour ça, ou à la première rencontre
-  if (stopped && !tile.platform && !tile.jumpTo && tile.obj !== 'O') {
+  if (stopped && !tile.platform && !tile.jumpTo && tile.obj !== 'O' && tile.obj !== 'E') {
     const npc = game.level.npcNear(tile);
     if (npc && (npc === pendingTalk || !npc.seen)) startDialogue(npc);
     else if (pendingTalk?.tile && adjacent(tile, pendingTalk.tile)) useCurio(pendingTalk);
@@ -493,7 +499,7 @@ function speakerOf(npcDef) {
 async function startDialogue(npc) {
   if (!playing() || dialogue.isOpen) return;
   const level = game.level;
-  beginCinematic();
+  const shot = beginCinematic();
 
   const lp = player.root.position.clone();
   const np = npc.root.getWorldPosition(new THREE.Vector3());
@@ -501,15 +507,9 @@ async function startDialogue(npc) {
   npc.lookAt(lp.x, lp.z);
   npc.inTalk = true;
 
-  const saved = rig.read();
-  const savedTarget = rig.target.clone();
   const mid = lp.clone().add(np).multiplyScalar(0.5);
   mid.y += 0.75;
-  // caméra de profil (côté le plus proche de la vue actuelle)
-  let theta = Math.atan2(np.x - lp.x, np.z - lp.z) + Math.PI / 2;
-  const diff = (a) => Math.abs(Math.atan2(Math.sin(a - saved.theta), Math.cos(a - saved.theta)));
-  if (diff(theta + Math.PI) < diff(theta)) theta += Math.PI;
-  rig.setInteractive(false);
+  const theta = profileTheta(lp, np, shot.saved.theta);
   await new Promise((r) => rig.animateTo({ r: 4.4, phi: 1.2, theta, target: mid, duration: 1.1, onComplete: r }));
 
   const def = npc.def;
@@ -522,14 +522,16 @@ async function startDialogue(npc) {
   npc.seen = true;
   npc.inTalk = false;
   npc.speaking = false;
-  await endCinematic(level, saved, savedTarget);
+  await endCinematic(shot);
   if (game.level !== level) return;
   await tutorials.teach('talk');
   if (game.level === level && playing()) hintOnce('start');
 }
 
-// Début de mini-cinématique (bandes noires, HUD masqué, Lumi immobile)
+// Début de mini-cinématique (bandes noires, HUD masqué, Lumi immobile).
+// Renvoie le « plan » à passer à endCinematic : niveau et cadrage à retrouver.
 function beginCinematic() {
+  const shot = { level: game.level, saved: rig.read(), target: rig.target.clone() };
   game.state = 'dialogue';
   player.locked = true;
   player.stop();
@@ -541,10 +543,19 @@ function beginCinematic() {
   dialogue.setCinema(true);
   sfx.duckMusic(true);
   rig.setInteractive(false);
+  return shot;
+}
+
+// Angle de caméra de profil sur le segment a → b, du côté le plus proche de
+// l'angle actuel `ref` (évite de faire le tour de l'île)
+function profileTheta(a, b, ref) {
+  const theta = Math.atan2(b.x - a.x, b.z - a.z) + Math.PI / 2;
+  const diff = (x) => Math.abs(Math.atan2(Math.sin(x - ref), Math.cos(x - ref)));
+  return diff(theta + Math.PI) < diff(theta) ? theta + Math.PI : theta;
 }
 
 // Fin de mini-cinématique : retour au cadrage de jeu, puis on rend la main
-function endCinematic(level, saved, savedTarget) {
+function endCinematic({ level, saved, target }) {
   player.talking = false;
   dialogue.setCinema(false);
   sfx.duckMusic(false);
@@ -554,7 +565,7 @@ function endCinematic(level, saved, savedTarget) {
       r: saved.r,
       phi: saved.phi,
       theta: saved.theta,
-      target: savedTarget,
+      target,
       duration: 1.0,
       onComplete: () => {
         game.state = 'play';
@@ -618,10 +629,7 @@ function twoShot(point, { r = 3.8, phi = 1.15, duration = 1.0, up = 0.7 } = {}) 
   const lp = player.root.position.clone();
   const mid = lp.clone().lerp(point, 0.5);
   mid.y += up;
-  let theta = Math.atan2(point.x - lp.x, point.z - lp.z) + Math.PI / 2;
-  const cur = rig.read().theta;
-  const diff = (a) => Math.abs(Math.atan2(Math.sin(a - cur), Math.cos(a - cur)));
-  if (diff(theta + Math.PI) < diff(theta)) theta += Math.PI;
+  const theta = profileTheta(lp, point, rig.read().theta);
   return new Promise((res) => rig.animateTo({ r, phi, theta, target: mid, duration, onComplete: res }));
 }
 
@@ -651,9 +659,7 @@ function playLines(curio, level, lines, color) {
 // façade, la porte s'ouvre sur un intérieur chaleureux, Lumi commente.
 async function visitCurio(curio, lines) {
   const level = game.level;
-  beginCinematic();
-  const saved = rig.read();
-  const savedTarget = rig.target.clone();
+  const shot = beginCinematic();
   const cp = curio.prop.getWorldPosition(new THREE.Vector3());
   const front = curio.prop.getWorldDirection(new THREE.Vector3());
   const target = cp.clone();
@@ -675,7 +681,7 @@ async function visitCurio(curio, lines) {
     level.setHouseOpen(curio, false);
     sfx.door(false);
   }
-  await endCinematic(level, saved, savedTarget);
+  await endCinematic(shot);
 }
 
 /* ═════════════ Cloche ═════════════ */
@@ -684,9 +690,7 @@ async function visitCurio(curio, lines) {
 // sonores s'étendent sur l'île, puis le texte de la cloche s'affiche.
 async function ringBell(curio, text) {
   const level = game.level;
-  beginCinematic();
-  const saved = rig.read();
-  const savedTarget = rig.target.clone();
+  const shot = beginCinematic();
   const bell = curio.prop.localToWorld(new THREE.Vector3(0, 0.45, 0));
   await twoShot(bell, { r: 3.6, up: 0.55 });
   if (game.level !== level) return;
@@ -703,7 +707,7 @@ async function ringBell(curio, text) {
     await wait(k ? 1300 : 900);
   }
   await playLines(curio, level, Array.isArray(text) ? text : [{ who: 'souvenir', text }]);
-  await endCinematic(level, saved, savedTarget);
+  await endCinematic(shot);
 }
 
 /* ═════════════ Vœu ═════════════ */
@@ -757,9 +761,7 @@ document.getElementById('wish-cancel').addEventListener('click', () => closeWish
 // la fontaine jaillit et le vœu monte vers le ciel en traînée de lumière.
 async function makeWish(curio, text) {
   const level = game.level;
-  beginCinematic();
-  const saved = rig.read();
-  const savedTarget = rig.target.clone();
+  const shot = beginCinematic();
   const basin = curio.prop.localToWorld(new THREE.Vector3(0, 0.2, 0));
   await twoShot(basin, { r: 3.6, up: 0.5 });
   if (game.level !== level) return;
@@ -770,7 +772,7 @@ async function makeWish(curio, text) {
   if (game.level !== level) return;
   if (!wish) {
     player.unlean();
-    return endCinematic(level, saved, savedTarget);
+    return endCinematic(shot);
   }
   progress.setWish(level.def.id, wish);
 
@@ -827,7 +829,7 @@ async function makeWish(curio, text) {
     { who: 'lumi', text: `« ${wish} »` },
     { who: 'souvenir', text },
   ]);
-  await endCinematic(level, saved, savedTarget);
+  await endCinematic(shot);
 }
 
 /* ═════════════ Points panoramiques ═════════════ */
@@ -875,9 +877,8 @@ function closeSkyView() {
 // Retour : fondu, Lumi se redresse, puis cadrage de jeu.
 async function observe(curio) {
   const level = game.level;
-  beginCinematic();
-  const saved = rig.read();
-  const savedTarget = rig.target.clone();
+  const shot = beginCinematic();
+  const { saved } = shot;
   // oculaire : bout arrière du tube incliné (coordonnées locales de la longue-vue)
   const eyepiece = curio.prop.localToWorld(telescopeEyepiece());
   const base = curio.prop.getWorldPosition(new THREE.Vector3());
@@ -944,14 +945,11 @@ async function observe(curio) {
     const p = player.root.position.clone().lerp(eyepiece, 0.5);
     p.y += 0.35;
     rig.target.copy(p);
-    let theta = toEye + Math.PI / 2;
-    const diff = (a) => Math.abs(Math.atan2(Math.sin(a - saved.theta), Math.cos(a - saved.theta)));
-    if (diff(theta + Math.PI) < diff(theta)) theta += Math.PI;
-    rig.set(3.4, 1.2, theta);
+    rig.set(3.4, 1.2, profileTheta(player.root.position, eyepiece, saved.theta));
   });
   player.unlean();
   await wait(500);
-  await endCinematic(level, saved, savedTarget);
+  await endCinematic(shot);
 }
 
 /* ═════════════ Monde-miroir ═════════════ */
@@ -1053,7 +1051,7 @@ async function ridePlatform(tile) {
 // Portail : Lumi se dissout, l'île pivote de 180°, il réapparaît sur l'autre face
 async function flipIsland(tile) {
   const level = game.level;
-  if (level.faces.length < 2) return;
+  if (!level.canFlip) return;
   player.locked = true;
   player.stop();
   cursor.hide();
@@ -1084,6 +1082,165 @@ async function flipIsland(tile) {
       hintOnce('flip', 'var(--violet)');
     });
   }, 420);
+}
+
+/* ═════════════ Grotte ═════════════ */
+
+// Bouche de grotte : Lumi est aspiré, la caméra plonge, écran noir ; il
+// tombe du plafond de la caverne. Le puits de lumière fait le chemin inverse.
+async function enterCave(tile) {
+  const level = game.level;
+  const exit = level.caveExit(tile);
+  if (!exit) return;
+  const down = exit.layer.side === 2;
+  player.locked = true;
+  player.stop();
+  cursor.hide();
+  if (down) await tutorials.teach('cave');
+  if (game.level !== level || !playing()) return void (player.locked = false);
+  const p = level.worldOf(tile, new THREE.Vector3());
+  level.pulseCave(tile);
+  player.vanish();
+  sfx.flip();
+  pad.rumble(0.3, 0.5, 380);
+  particles.emit(p.clone().setY(p.y + 0.3), down ? level.palette.rim : 0xffffff, 34, { speed: down ? 1.2 : 1.8, up: down ? -0.6 : 2.4, life: 0.9, size: 4, gravity: down ? 1.5 : -1.5 });
+  particles.ring(p, level.palette.rim, 24, 2, { size: 4, life: 0.6 });
+  const s = rig.read();
+  rig.animateTo({ r: s.r * 0.55, phi: down ? Math.min(s.phi, 0.75) : Math.max(s.phi, 1.15), theta: s.theta, target: p, duration: 1.0 });
+  await wait(750);
+  if (game.level !== level) return;
+  ui.fade(true);
+  await wait(500);
+  if (game.level !== level) return;
+
+  // écran noir : on passe sur l'autre face (ciel et lumière de la grotte)
+  level.enterFace(exit.layer);
+  lights.setCave(down);
+  sky.group.visible = !down;
+  sky.setMood(down ? 'cave' : level.def.mood);
+  lights.fitShadow(level);
+  player.place(level, exit);
+  player.locked = true;
+  player.appear();
+  player.drop(down ? 3.2 : 1.2);
+  rig.fit(level);
+  rig.target.copy(level.focus);
+  const v = rig.view;
+  rig.set(v.radius * (down ? 0.8 : 1.1), v.phi - (down ? 0.25 : -0.05), s.theta);
+  ui.fade(false);
+  pointer.refresh();
+  setTimeout(() => {
+    if (game.level !== level) return;
+    const w = level.worldOf(exit, new THREE.Vector3());
+    sfx.land(2);
+    rig.shake(0.06);
+    pad.rumble(0.45, 0.35, 160);
+    particles.ring(w, level.palette.accent, 26, 2.4, { size: 4, life: 0.7, up: 0.1 });
+    particles.emit(w, 0xffffff, 16, { speed: 1.4, up: 1.2, life: 0.8, size: 4, gravity: -2 });
+  }, 380);
+  rig.home(level, 1.4, () => {
+    if (game.level !== level) return;
+    player.locked = false;
+    pointer.refresh();
+    hintOnce(down ? 'cave' : 'surface', 'var(--rose)');
+  });
+}
+
+/* ═════════════ Sanctuaire ═════════════ */
+
+const altarWarned = new Set(); // autels vides déjà signalés (une fois par partie)
+
+// Lumi pose sur l'autel la gemme gagnée sur l'île correspondante
+function placeAltar(tile) {
+  const level = game.level;
+  const altar = tile.altar;
+  if (!altar || altar.placed) return;
+  const def = altar.def;
+  const owned = progress.level(def.level).done || new URLSearchParams(location.search).has('debug');
+  if (!owned) {
+    if (altarWarned.has(def.level)) return;
+    altarWarned.add(def.level);
+    const island = LEVELS.find((l) => l.id === def.level)?.name ?? def.level;
+    sfx.deny();
+    ui.toast(`L’autel de ${def.name} attend sa gemme. Retourne la chercher : ${island}.`, { color: 'var(--rose)', duration: 4200 });
+    return;
+  }
+  tutorials.teach('altar');
+  const color = altar.prop.userData.tint;
+  const p = level.worldOf(tile, new THREE.Vector3());
+  p.y += 0.75;
+  sfx.gem(level.altars.filter((a) => a.placed).length);
+  pad.rumble(0.2, 0.5, 120);
+  level.placeAltar(altar, () => {
+    if (game.level !== level) return;
+    sfx.discover();
+    particles.ring(p, color, 26, 2.2, { size: 4, life: 0.7 });
+    particles.emit(p, color, 22, { speed: 1.8, up: 1.6, life: 0.9, size: 5, gravity: -2 });
+    const left = level.altars.filter((a) => !a.placed).length;
+    if (left) ui.toast(`Gemme de ${def.name} déposée. Encore ${left}.`, { color: '#' + color.getHexString(), duration: 2200 });
+    else forgeKey();
+  });
+}
+
+// Les huit gemmes réunies : la Clé du Réveil naît dans la forge et ouvre la Porte
+async function forgeKey() {
+  const level = game.level;
+  if (!playing()) return;
+  const shot = beginCinematic();
+  const { saved } = shot;
+  const center = level.forge.getWorldPosition(new THREE.Vector3());
+  center.y += 0.8;
+  await new Promise((r) => rig.animateTo({ r: 7.5, phi: 0.95, theta: saved.theta, target: center, duration: 1.2, onComplete: r }));
+  if (game.level !== level) return;
+  const door = new Promise((resolve) =>
+    level.forgeKey({
+      onForged(pos) {
+        sfx.star();
+        rig.shake(0.08);
+        pad.rumble(0.6, 0.7, 360);
+        particles.ring(pos, 0xffd47a, 40, 3.4, { size: 6, life: 1 });
+        particles.emit(pos, 0xffffff, 50, { speed: 3, up: 2.6, life: 1.4, size: 6, gravity: -1.5 });
+      },
+      onArrived: resolve,
+    }),
+  );
+  // la caméra suit la clé jusqu'à la porte
+  await wait(3300);
+  if (game.level !== level) return;
+  const dp = level.worldOf(level.starTile, new THREE.Vector3());
+  dp.y -= 0.6;
+  rig.animateTo({ r: 9, phi: 1.05, theta: saved.theta, target: dp, duration: 2.0 });
+  const pos = await door;
+  if (game.level !== level) return;
+  sfx.button();
+  particles.emit(pos, 0xfff1c9, 40, { speed: 2.4, up: 1.8, life: 1.2, size: 5, gravity: -1 });
+  ui.toast(level.def.hints?.key ?? 'La Porte du Réveil s’ouvre…', { color: 'var(--gold)' });
+  const total = level.activateBridges((t, i) => {
+    sfx.bridge(i);
+    pad.rumble(0.05, 0.3, 60);
+    particles.emit(level.worldOf(t, new THREE.Vector3()), 0xfff1c9, 12, { speed: 1.8, up: 1.2, life: 0.7, size: 4, gravity: -2 });
+  });
+  await wait(600 + total * 160 + 900);
+  if (game.level !== level) return;
+  await endCinematic(shot);
+}
+
+// Fin du jeu : lumière blanche, elle se réveille (clic ou délai pour continuer)
+const awakeEl = document.getElementById('awake');
+function awaken() {
+  return new Promise((resolve) => {
+    awakeEl.classList.add('is-on');
+    awakeEl.setAttribute('aria-hidden', 'false');
+    const close = () => {
+      clearTimeout(timer);
+      awakeEl.removeEventListener('click', close);
+      awakeEl.classList.remove('is-on');
+      awakeEl.setAttribute('aria-hidden', 'true');
+      resolve();
+    };
+    const timer = setTimeout(close, 12000);
+    setTimeout(() => awakeEl.addEventListener('click', close), 2500);
+  });
 }
 
 function collectGem(tile) {
@@ -1147,8 +1304,12 @@ function completeLevel(tile) {
   const focus = level.worldOf(tile, new THREE.Vector3());
   focus.y += 0.6;
   rig.animateTo({ r: rig.view.radius * 0.55, phi: Math.min(s.phi, 1.05), theta: s.theta + 0.5, target: focus, duration: 2.4 });
-  setTimeout(() => {
+  setTimeout(async () => {
     if (game.state !== 'complete') return;
+    if (level.def.final) {
+      await awaken();
+      if (game.state !== 'complete' || game.level !== level) return;
+    }
     ui.showComplete(true, {
       def: level.def,
       gems: game.gems,
@@ -1410,7 +1571,8 @@ function frame(timestamp) {
 
   // Les god rays partent du cœur de la gemme du niveau
   const star = game.level?.star;
-  sun.visible = !!star && gfx.godRaysOn;
+  // (pas de rayons tant que la gemme est cachée dans la grotte)
+  sun.visible = !!star && gfx.godRaysOn && game.level.starTile?.layer.group.visible !== false;
   if (sun.visible) sun.position.copy(star.userData.spin.getWorldPosition(sunPos));
 
   globalUniforms.uTime.value = t;
