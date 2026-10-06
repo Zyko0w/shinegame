@@ -158,7 +158,7 @@ export function createRenderer(canvas, scene, camera) {
   sanitize.enabled = new URLSearchParams(location.search).has('safe');
   composer.addPass(sanitize);
 
-  // Source des god rays : petit soleil placé dans l'étoile du niveau
+  // Source des god rays : petit soleil placé dans la gemme du niveau
   const sun = new THREE.Mesh(
     new THREE.SphereGeometry(0.22, 24, 16),
     new THREE.MeshBasicMaterial({ color: new THREE.Color(1.0, 0.82, 0.5), transparent: true, depthWrite: false }),
@@ -225,7 +225,7 @@ export function createRenderer(canvas, scene, camera) {
     const w = window.innerWidth;
     const h = window.innerHeight;
     grade.uniforms.get('uTilt').value = state.tilt ? (w < 720 ? 3 : 5) * state.pixelRatio : 0;
-    const key = `x@`;
+    const key = `${w}x${h}@${state.pixelRatio}`;
     if (key === lastSize) return;
     lastSize = key;
     renderer.setPixelRatio(state.pixelRatio);

@@ -10,7 +10,11 @@ import { settings } from './settings.js';
 //   du budget) pendant plusieurs fenêtres. Sans mesure GPU (Firefox), on ne
 //   monte jamais seul : la synchro écran masque la marge disponible ;
 // - un palier qui a échoué est banni de plus en plus longtemps ;
-// - les mesures sont ignorées juste après un changement (recompilations).
+// - les mesures sont ignorées juste après un changement (recompilations) ;
+// - en pleine partie, une descente ne baisse QUE la résolution (sans
+//   recompilation, donc sans gel) ; le changement complet d'effets attend un
+//   moment sûr (pause, fondu entre niveaux). Recompiler les shaders des god
+//   rays / de l'AO en jeu provoquait des gels de plusieurs centaines de ms.
 
 export const DEVICE_PR = Math.min(window.devicePixelRatio || 1, 2);
 
@@ -69,13 +73,14 @@ export class Quality {
     return this.stats.fps;
   }
 
-  // Applique palier + résolution + effets activés dans les paramètres
-  refresh() {
+  // Applique palier + résolution + effets activés dans les paramètres.
+  // `prTier` : palier dont on prend seulement la résolution (descente douce).
+  refresh(prTier = this.tier) {
     const base = TIERS[this.tier];
     const fx = settings.get('effects');
     this.apply({
       ...base,
-      pixelRatio: pixelRatioFor(settings.get('resolution'), base),
+      pixelRatio: pixelRatioFor(settings.get('resolution'), TIERS[prTier]),
       ao: base.ao && fx.ao,
       godRaysOn: fx.godRays,
       tilt: base.tilt && fx.tilt,
@@ -131,7 +136,15 @@ export class Quality {
       if (++this.slowWindows >= 2 && this.tier > 0) {
         this.failures[this.tier]++;
         this.bannedUntil[this.tier] = this.clock + 60 * this.failures[this.tier] ** 2;
-        this.set(this.tier - 1);
+        const next = Math.min(this.tier, this.pendingTier ?? this.tier) - 1;
+        if (next < 0) return;
+        if (this.canUpgradeNow()) this.set(next);
+        else {
+          // descente douce : résolution du palier inférieur tout de suite,
+          // effets du palier inférieur au prochain moment sûr
+          this.pendingTier = next;
+          this.refresh(next);
+        }
       }
       return;
     }
@@ -140,6 +153,7 @@ export class Quality {
     const headroom = gpuKnown && s.gpuMs < budget * 0.55 && s.avgMs < budget * 1.08;
     if (headroom) {
       const next = this.tier + 1;
+      if (this.pendingTier !== null && this.pendingTier < this.tier) return; // descente en attente
       if (++this.goodWindows >= 4 && next <= MAX_TIER && this.clock > this.bannedUntil[next]) {
         if (this.canUpgradeNow()) this.set(next);
         else this.pendingTier = next;
