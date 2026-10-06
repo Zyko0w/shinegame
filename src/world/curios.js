@@ -20,31 +20,8 @@ import { liquidMaterial } from './biome.js';
 const cache = {};
 const once = (key, fn) => cache[key] ?? (cache[key] = fn());
 
-/* ───────────── Textes par défaut ───────────── */
-
-export const CURIO_INFO = {
-  H: { verb: 'Visiter', name: 'la maison' },
-  Y: { verb: 'Faire tourner', name: 'le moulin' },
-  Q: { verb: 'Sonner', name: 'la cloche' },
-  F: { verb: 'Faire un vœu à', name: 'la fontaine' },
-  N: { verb: 'Lire', name: 'le panneau' },
-  U: { verb: 'Observer avec', name: 'la longue-vue' },
-};
-
-const DEFAULT_TEXT = {
-  H: [
-    { who: 'lumi', text: 'Toc toc… Il n’y a personne. Juste une bougie qui attend quelqu’un.' },
-    { who: 'lumi', text: 'C’est petit, mais ça sent le pain chaud et les souvenirs.' },
-  ],
-  Y: 'Les ailes du moulin s’emballent. Le vent de l’Archipel souffle encore.',
-  Q: 'La cloche résonne longtemps entre les îles.',
-  F: 'Tu fais un vœu. L’eau scintille, comme si elle l’avait entendu.',
-  N: '« Ici, quelqu’un a attendu les étoiles. »',
-};
-
-export function curioText(type, def) {
-  return def?.lines ?? def?.text ?? DEFAULT_TEXT[type];
-}
+// Textes des curiosités : voir game/curioTexts.js (partagés avec le générateur de voix)
+export { CURIO_INFO, curioText } from '../game/curioTexts.js';
 
 /* ───────────── Kit de matériaux (un par niveau) ───────────── */
 

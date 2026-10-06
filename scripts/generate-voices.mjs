@@ -8,8 +8,12 @@
 //   npm run voices -- --prune → retire seulement du manifeste les répliques
 //                               dont le texte a changé (hors ligne) : le jeu
 //                               utilise alors la voix du navigateur pour elles
+//   npm run voices -- --check → liste les répliques sans enregistrement (hors ligne)
 //
-// Sortie : public/voices/<niveau>/<personnage>-<l|r><n>.mp3 et outro.mp3
+// Répliques : esprits (dialogues, rappels, citation de fin), curiosités dites à
+// voix haute (maisons, longues-vues, cloches, fontaines) et vœux proposés.
+// Sortie : public/voices/<niveau>/<personnage>-<l|r><n>.mp3, outro.mp3,
+//          <niveau>/curio-<face>-<x>-<z>-<n>.mp3, wish/<vœu>.mp3
 //          public/voices/manifest.json  (clé de réplique → fichier + empreinte)
 // Une réplique n'est régénérée que si son texte ou sa voix a changé.
 
@@ -20,6 +24,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { LEVELS } from '../src/game/levels.js';
+import { CURIOS } from '../src/game/tiles.js';
+import { curioSpeech, curioKey, wishKey, DEFAULT_WISHES } from '../src/game/curioTexts.js';
 import { ELEVEN_MODEL, elevenKey, elevenSpeak, isFatal } from './eleven.mjs';
 
 // Casting : une voix Edge + un réglage de hauteur / débit par personnage
@@ -37,6 +43,7 @@ export const CAST = {
   alcor: { voice: 'de-DE-SeraphinaMultilingualNeural', rate: '-2%' }, // jalousie
   merope: { voice: 'fr-FR-VivienneMultilingualNeural', rate: '-8%' }, // honte
   polaris: { voice: 'fr-FR-VivienneMultilingualNeural', rate: '-4%' }, // espoir
+  souvenir: { voice: 'fr-FR-RemyMultilingualNeural', rate: '-6%' }, // narrateur : carnets, lettres, souvenirs
 };
 
 // Casting ElevenLabs (prioritaire sur CAST) : identifiant de voix par personnage.
@@ -55,6 +62,7 @@ export const ELEVEN = {
   alcor: { voice: 'hpp4J3VqNfWAUOO0d1Us' }, // Bella : vive, jalousie
   merope: { voice: 'XrExE9yKIg1WjnnlVkGX', stability: 0 }, // Matilda : douce, timide, honte
   polaris: { voice: 'EXAVITQu4vr4xnSDxMaL' }, // Sarah : chaleureuse, rassurante, espoir
+  souvenir: { voice: 'JBFqnCBsd6RMkjVDRZzb' }, // George : conteur chaleureux (carnets, lettres)
 };
 
 const useEdgeOnly = process.argv.includes('--edge');
@@ -72,17 +80,38 @@ const outDir = join(root, 'public', 'voices');
 const manifestPath = join(outDir, 'manifest.json');
 const all = process.argv.includes('--all');
 const prune = process.argv.includes('--prune');
+const check = process.argv.includes('--check');
 
 // Toutes les répliques à dire, avec une clé stable (utilisée par le jeu)
 function collectLines() {
   const out = [];
+  const wishes = new Set();
   for (const level of LEVELS) {
     for (const npc of level.npcs ?? []) {
       npc.lines.forEach((l, i) => out.push({ key: `${level.id}/${npc.id}/l${i}`, who: l.who, text: l.text, file: `${level.id}/${npc.id}-l${i}.mp3` }));
       (npc.repeat ?? []).forEach((l, i) => out.push({ key: `${level.id}/${npc.id}/r${i}`, who: l.who, text: l.text, file: `${level.id}/${npc.id}-r${i}.mp3` }));
     }
     if (level.outro) out.push({ key: `${level.id}/outro`, who: level.outro.who, text: level.outro.text, file: `${level.id}/outro.mp3` });
+    // curiosités de chaque face (y compris celles sans texte propre)
+    const faces = [
+      [0, level.objects],
+      [1, level.under?.objects],
+      [2, level.inside?.objects],
+    ];
+    for (const [side, rows] of faces) {
+      (rows ?? []).forEach((row, z) =>
+        [...row].forEach((type, x) => {
+          if (!CURIOS.has(type)) return;
+          const def = (level.curios ?? []).find((c) => c.at[0] === x && c.at[1] === z && (c.side ?? 0) === side);
+          for (const l of curioSpeech(type, def)) {
+            out.push({ key: curioKey(level.id, side, x, z, l.slot), who: l.who, text: l.text, file: `${level.id}/curio-${side}-${x}-${z}-${l.slot}.mp3` });
+          }
+          if (type === 'F') for (const w of def?.wishes ?? DEFAULT_WISHES) wishes.add(w);
+        }),
+      );
+    }
   }
+  for (const w of wishes) out.push({ key: wishKey(w), who: 'lumi', text: w, file: `${wishKey(w)}.mp3` });
   return out;
 }
 
@@ -95,6 +124,14 @@ const hash = (o) => createHash('sha1').update(JSON.stringify(o)).digest('hex').s
 
 const lines = collectLines();
 const manifest = existsSync(manifestPath) && !all ? JSON.parse(readFileSync(manifestPath, 'utf8')) : {};
+if (check) {
+  const missing = lines.filter((l) => !manifest[l.key] || !existsSync(join(outDir, l.file)));
+  const noCast = [...new Set(lines.filter((l) => !CAST[l.who]).map((l) => l.who))];
+  for (const l of missing) console.log(`✗ ${l.key.padEnd(34)} ${l.who.padEnd(9)} ${l.text.slice(0, 60)}`);
+  console.log(`\n${lines.length - missing.length}/${lines.length} répliques enregistrées, ${missing.length} manquante(s) (~${missing.reduce((n, l) => n + l.text.length, 0)} caractères).`);
+  if (noCast.length) console.log(`Sans voix attribuée : ${noCast.join(', ')}`);
+  process.exit(missing.length ? 1 : 0);
+}
 if (prune) {
   let n = 0;
   const current = new Map(lines.map((l) => [l.key, l]));

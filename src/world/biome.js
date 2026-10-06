@@ -125,7 +125,7 @@ export function buildBiome(layer, rnd, palette) {
     m.receiveShadow = receive;
     meshes.push(m);
   };
-  const ground = layer.list.filter((t) => !t.bridge && !t.platform);
+  const ground = layer.list.filter((t) => !t.bridge && !t.platform && !t.pit);
   const wx = (t) => t.x - layer.offsetX;
   const wz = (t) => t.z - layer.offsetZ;
   // cases libres : on décore les coins pour laisser le centre à Lumi

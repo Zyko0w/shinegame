@@ -1,9 +1,10 @@
 import { settings } from '../core/settings.js';
 
 // Voix des personnages, par ordre de préférence :
-// 1. répliques enregistrées (MP3 générés par `npm run voices`, voix neuronales
+// 1. répliques enregistrées (MP3 générés par `npm run voices` : ElevenLabs ou
 //    Edge), jouées dans le moteur audio du jeu (volume « Voix », réverbe) ;
-// 2. synthèse vocale du navigateur (Web Speech API), voix française ;
+// 2. réplique du jeu pas encore enregistrée : babillage (même timbre partout) ;
+//    synthèse vocale du navigateur seulement pour les textes hors jeu ;
 // 3. « babillage » synthétisé, calé sur le texte qui s'écrit.
 // L'option « Voix humaines » désactivée force le babillage.
 
@@ -87,6 +88,9 @@ export class Voice {
       this.playClip(key, token, done).catch(() => token === this.token && this.speak(text, speaker, done));
       return;
     }
+    // réplique du jeu pas encore enregistrée : babillage plutôt que la voix du
+    // navigateur, qui ne ressemble pas à celle du personnage
+    if (key && Object.keys(this.manifest).length) return this.babble(text, speaker, done);
     if (synth && this.voices.length) return this.speak(text, speaker, done);
     this.babble(text, speaker, done);
   }

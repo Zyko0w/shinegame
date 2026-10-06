@@ -94,7 +94,7 @@ export function buildIslandDecor(layer, rnd, { underside, palette }) {
   const r = res();
   const group = new THREE.Group();
   const disposables = [];
-  const ground = layer.list.filter((t) => !t.bridge && !t.platform);
+  const ground = layer.list.filter((t) => !t.bridge && !t.platform && !t.pit);
   const edgeDirs = (t) => DIRS.filter(([dx, dz]) => {
     const n = layer.tileAt(t.x + dx, t.z + dz);
     return !n || n.bridge || n.platform;
@@ -104,7 +104,7 @@ export function buildIslandDecor(layer, rnd, { underside, palette }) {
   const grass = [];
   const flowers = [];
   for (const t of ground) {
-    if (t.obj === 'T' || t.obj === 'V') continue;
+    if (t.obj === 'T' || t.obj === 'V' || t.lava) continue;
     const busy = t.obj !== '.' && t.obj !== 'P';
     const n = busy ? 2 : 3 + ((rnd() * 4) | 0);
     for (let i = 0; i < n; i++) {

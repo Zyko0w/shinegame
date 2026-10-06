@@ -29,10 +29,18 @@
 //   E = entrée de grotte (surface) / puits de lumière (intérieur) : s'y arrêter
 //       fait passer de l'une à l'autre
 //   Z = autel d'une gemme (sanctuaire, voir `altars`)   * = forge de la clé
+//   Obstacles : D = bloc à pousser   _ = fosse (un bloc la comble)
+//   ~ = coulée de lave (brûle quand elle monte)   < > ^ v = éolienne (sens du souffle)
+//   L = lanterne : en passant, Lumi en fait son point de reprise
+//   : = dalle fragile (cède quand on la quitte)   o = plaque de pression
+//   # = dalle-porte (présente tant que toutes les plaques sont enfoncées)
+//   @ = émetteur de rayon (`beams: [{ at, dir }]`)   / \ = miroir orientable
+//   $ = récepteur (le rayon fait naître les ponts =)
 // under     : face cachée { heights, objects } (vue une fois l'île retournée).
 // inside    : intérieur de l'île { heights, objects } (grotte), side = 2.
 // altars    : [{ at, level, mood, name }] autel → île dont il attend la gemme.
 // door      : la gemme de fin est la Porte du Réveil (arche) ; final : fin du jeu.
+// beams     : [{ at: [x, z], side, dir: '>' | '<' | '^' | 'v' }] direction des émetteurs.
 // platforms : [{ side, from: [x, z], to: [x, z], h }] plateforme mobile.
 // jumps     : [{ side, from: [x, z], to: [x, z] }] tremplin (case de départ → arrivée).
 // npcs      : [{ id, at: [x, z], side, name, emotion, voice, lines, repeat }]
@@ -59,14 +67,14 @@ export const LEVELS = [
       '2224...4...',
       '12222223...',
       '1122...2222',
-      '0012...2222',
-      '00.....2222',
-      '.0......2..',
-      '0001...2222',
-      '0000...222.',
-      '..0........',
-      '000........',
-      '000........',
+      '0012...2222.22',
+      '00.....2222222',
+      '.0......2...22',
+      '0001...2222.11',
+      '0000...222..11',
+      '..0.........00',
+      '000.........00',
+      '000.........0.',
     ],
     objects: [
       'B.MT...L.S.',
@@ -75,14 +83,14 @@ export const LEVELS = [
       '...G.......',
       '..P.===....',
       'WM.....M..T',
-      '.........LW',
-      'G......C..G',
-      '.K......K..',
-      'Y..N.......',
-      '.H.G.....L.',
-      '..K........',
-      'X..........',
-      'U.A........',
+      '.........LW.LT',
+      'G......C.D._G.',
+      '.K......K....M',
+      'Y..N..........',
+      '.H.G.....L..G.',
+      '..K..........C',
+      'X.............',
+      'U.A...........',
     ],
     curios: [
       {
@@ -130,6 +138,7 @@ export const LEVELS = [
     hints: {
       start: 'Clique sur une case pour guider Lumi. Approche-toi d’Orion pour lui parler.',
       button: 'Un pont de lumière se forme…',
+      filled: 'Le bloc comble la fosse : un nouveau passage s’ouvre !',
     },
   },
   {
@@ -144,6 +153,8 @@ export const LEVELS = [
       '2..9..2.22',
       '1..90.1111',
       '0000000.00',
+      '.000000.0.',
+      '....00000.',
     ],
     objects: [
       '.G........',
@@ -151,6 +162,8 @@ export const LEVELS = [
       'W..=..G.HV',
       '...S..LK.Q',
       'G..P..B.G.',
+      '.>........',
+      '....G::...',
     ],
     curios: [
       {
@@ -185,6 +198,7 @@ export const LEVELS = [
     hints: {
       start: 'Les marches manquent tout là-haut. Il doit bien y avoir un interrupteur…',
       button: "L'escalier se complète dans le ciel.",
+      wind: 'Attention aux soupirs de l’éolienne : ils poussent vers le vide.',
     },
   },
   {
@@ -194,26 +208,30 @@ export const LEVELS = [
     subtitle: 'Le bac des étoiles',
     mood: 'lonely',
     heights: [
-      '333....333',
-      '343....323',
-      '333....333',
-      '2.......3.',
-      '1.......4.',
-      '00......56',
-      '0.........',
-      '0000......',
-      '.00.......',
+      '333....333.',
+      '343....323.',
+      '333....333.',
+      '2.......333',
+      '1.......444',
+      '00......56.',
+      '0..........',
+      '0000.......',
+      '000........',
+      '000000000..',
+      '.00........',
     ],
     objects: [
-      'T......C.T',
-      '.G......GW',
-      '..M......F',
-      '..........',
-      '..........',
-      'PG.......S',
-      'K.........',
-      '...H......',
-      '.NG.......',
+      'T......C.T.',
+      '.G......GW.',
+      '..M......F.',
+      '..........L',
+      '..........<',
+      'PG.......S.',
+      'K..........',
+      '...H.......',
+      '.NG........',
+      '..D.###.G..',
+      '.Lo........',
     ],
     curios: [
       {
@@ -253,8 +271,9 @@ export const LEVELS = [
     ],
     outro: { who: 'lyre', text: "Tu es allé jusqu’au bout… Peut-être qu’elle peut encore laisser quelqu’un s’approcher." },
     hints: {
-      start: 'Arrête-toi sur la plateforme dorée : elle te portera de l’autre côté.',
+      start: 'Arrête-toi sur la plateforme dorée : elle te portera de l’autre côté. Là-bas, gare au vent glacé.',
       platform: 'En route vers l’autre île…',
+      plate: 'Les dalles bleues tiennent… tant que la plaque reste enfoncée.',
     },
   },
   {
@@ -269,6 +288,8 @@ export const LEVELS = [
       '012.33333333',
       '00...3.33.33',
       '0000.3...',
+      '000000',
+      '000.00',
     ],
     objects: [
       '....M.......',
@@ -276,6 +297,8 @@ export const LEVELS = [
       'C.....K..K.U',
       '.......QV..A',
       'P..G.O...',
+      '..D_.G',
+      'L.....',
     ],
     curios: [
 {
@@ -296,14 +319,14 @@ export const LEVELS = [
       heights: [
         '456..0',
         '3....0',
-        '2...11',
+        '222111',
         '1...1.',
         '00000.',
       ],
       objects: [
         '..S..O',
         'L.....',
-        '....C.',
+        '.:::C.',
         '....G.',
         '..G...',
       ],
@@ -329,6 +352,7 @@ export const LEVELS = [
     hints: {
       start: 'Ce portail fait basculer l’île… et si la gemme se cachait dessous ?',
       flip: 'Tu marches sous l’île ! Le portail te ramène de l’autre côté.',
+      filled: 'La fosse est comblée.',
     },
   },
   {
@@ -340,17 +364,17 @@ export const LEVELS = [
     heights: [
       '.....33.....',
       '.....33.....',
-      '111..33..444',
-      '011..3...454',
-      '001..33..456',
+      '111..33..44444',
+      '011..3...444456',
+      '001..33..44445',
       '.....33.....',
     ],
     objects: [
       '.....T......',
       '......G.....',
-      '...........G',
-      '.P...K......',
-      'G.....H....S',
+      '...........G_.',
+      '.P...K....D._.S',
+      'G.....H..L.._.',
       '.....GY.....',
     ],
     curios: [
@@ -389,7 +413,8 @@ export const LEVELS = [
     ],
     outro: { who: 'betel', text: "Tu as sauté jusqu’au bout… Peut-être que c’est moi qui l’ai éloignée des autres, bien plus qu’eux." },
     hints: {
-      start: 'Arrête-toi sur un tremplin pour être projeté vers l’île voisine.',
+      start: 'Arrête-toi sur un tremplin pour être projeté vers l’île voisine. La gemme est derrière une tranchée : pousse le bloc runique pour la combler.',
+      filled: 'Le bloc comble la tranchée. La gemme est à portée !',
     },
   },
   {
@@ -406,15 +431,19 @@ export const LEVELS = [
       '1000........',
       '00000.......',
       '.0000.......',
+      '000000',
+      '00.000',
     ],
     objects: [
-      '...B......GS',
+      '..........GS',
       '.VG.........',
       '....===.....',
       '........G...',
       '..VH........',
       'P.K.........',
-      '.GVWF.......',
+      '.GV.F.......',
+      '.L~~~.',
+      'G..~.B',
     ],
     curios: [
       {
@@ -453,7 +482,7 @@ export const LEVELS = [
     ],
     outro: { who: 'antar', text: "C’est fou… Quand la flamme se calme, elle éclaire au lieu de brûler. Garde ma gemme, petite flamme." },
     hints: {
-      start: 'Le pont est brisé. Trouve l’interrupteur, puis le tremplin.',
+      start: 'Le pont est brisé. L’interrupteur est au-delà de la coulée de lave : traverse quand la croûte est sombre.',
       button: 'Le pont se reforge…',
     },
   },
@@ -463,6 +492,7 @@ export const LEVELS = [
     chapter: 'Chapitre VI · La Jalousie',
     subtitle: 'Le reflet trompeur',
     mood: 'envy',
+    beams: [{ at: [2, 13], dir: '>' }],
     heights: [
       '........6..',
       '........5..',
@@ -474,6 +504,12 @@ export const LEVELS = [
       '.0......2..',
       '000.....222',
       '........22.',
+      '.......2222',
+      '......22222',
+      '.......222.',
+      '..2222222..',
+      '...2....2..',
+      '..2222222..',
     ],
     objects: [
       '........S..',
@@ -486,6 +522,12 @@ export const LEVELS = [
       '.-......+..',
       'Q.C.......H',
       '........GV.',
+      '.......L...',
+      '......>...G',
+      '........M..',
+      '..@...../..',
+      '...........',
+      '..L.==.G$..',
     ],
     npcs: [
       {
@@ -535,6 +577,7 @@ export const LEVELS = [
       start: 'Traverse le portique-miroir : dans le reflet, des dalles d’argent apparaissent… mais tes commandes s’inversent.',
       mirror: 'Dans le reflet ! Gauche et droite, avant et arrière sont inversés.',
       unmirror: 'Retour du bon côté du miroir : les dalles dorées sont revenues.',
+      beam: 'Le rayon touche le récepteur : un pont de lumière apparaît !',
     },
   },
   {
@@ -549,7 +592,9 @@ export const LEVELS = [
       '0001123443',
       '00..1.3344',
       '000...33..',
-      '.00.......',
+      '000.......',
+      '000000....',
+      '000000....',
     ],
     objects: [
       '..M..T....',
@@ -558,6 +603,8 @@ export const LEVELS = [
       '.G....C...',
       '..F...M...',
       '.H........',
+      '...L......',
+      'G....<....',
     ],
     inside: {
       heights: [
@@ -568,7 +615,8 @@ export const LEVELS = [
         '..10000..3.',
         '.000000..2.',
         '.000011221.',
-        '..00.......',
+        '..0000000..',
+        '.......00..',
       ],
       objects: [
         'E..L.......',
@@ -578,7 +626,8 @@ export const LEVELS = [
         '..M...G....',
         '.G....V..G.',
         '.B..Q.==...',
-        '..G........',
+        '..G.D._....',
+        '.......LG..',
       ],
     },
     curios: [
@@ -628,6 +677,7 @@ export const LEVELS = [
       cave: 'Te voilà au cœur de l’île. Le puits de lumière te ramène à la surface.',
       surface: 'De retour à la surface.',
       button: 'Des dalles de lumière enjambent le gouffre…',
+      filled: 'Le bloc comble la fosse.',
     },
   },
   {
@@ -644,11 +694,12 @@ export const LEVELS = [
       '.....3.....',
       '.....2.....',
       '..1111111..',
-      '.111111111.',
-      '.111111111.',
-      '.111111111.',
-      '.111111111.',
+      '11111111111',
+      '11111111111',
+      '11111111111',
+      '11111111111',
       '..1111111..',
+      '..0000000..',
       '...00000...',
     ],
     objects: [
@@ -662,7 +713,8 @@ export const LEVELS = [
       '..M.....C..',
       '.Z.......Z.',
       '...Z...Z...',
-      '.....PN....',
+      '..L..PN.L..',
+      '.....X.....',
     ],
     altars: [
       { at: [3, 4], level: 'orion', mood: 'wonder', name: 'l’Émerveillement' },

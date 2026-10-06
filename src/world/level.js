@@ -10,7 +10,8 @@ import { mulberry32, hashString } from '../core/random.js';
 import { ease } from '../core/tween.js';
 import { patchTopBlock, patchSideBlock, patchUnderside, patchIridescent } from './materials.js';
 import * as SA from './sanctum.js';
-import { BLOCKING } from '../game/tiles.js';
+import { BLOCKING, PUSH_BLOCK, PIT, LAVA, FAN_DIRS, FRAGILE, PLATE, GATE, EMITTER, MIRRORS, RECEPTOR, reflect, beamHeight } from '../game/tiles.js';
+import * as HZ from './hazards.js';
 
 // Un niveau = une île flottante à une ou deux faces jouables.
 // - Face 0 : le dessus. Face 1 (optionnelle, `def.under`) : la face cachée,
@@ -27,6 +28,12 @@ import { BLOCKING } from '../game/tiles.js';
 //   de lumière) le ramène à la surface. Une seule de ces faces est affichée.
 // - Sanctuaire : autels (Z, un par émotion, `def.altars`) où poser les gemmes,
 //   forge centrale (*) où naît la Clé du Réveil.
+// - Obstacles (voir world/hazards.js) : blocs à pousser (D), fosses (_),
+//   coulées de lave (~) et éoliennes (< > ^ v). Tomber ou brûler renvoie Lumi
+//   à la dernière lanterne (L) allumée. Dalles fragiles (:) qui s'effondrent
+//   après le passage ; plaques (o) qui gardent ouvertes les dalles-portes (#)
+//   tant qu'elles sont toutes enfoncées ; rayons : émetteur (@, `def.beams`),
+//   miroirs orientables (/ \) et récepteur ($) qui fait naître les ponts (=).
 // Toute la logique (grille, chemins) porte sur la face active.
 
 export const STEP = 0.5; // hauteur d'un demi-bloc
@@ -40,7 +47,7 @@ const DIRS = [
 
 const MERGEABLE = new Set(['K', 'R', 'H', 'Y', 'Q', 'F', 'N', 'U', 'X', 'A']);
 // Cases sans colonne de roche : dalles posées dans le vide
-const SLABS = new Set(['=', '+', '-', 'K']);
+const SLABS = new Set(['=', '+', '-', 'K', FRAGILE, GATE]);
 
 const dummy = new THREE.Object3D();
 const tmpColor = new THREE.Color();
@@ -112,8 +119,16 @@ class Face {
           plank: obj === 'K',
           reflect: obj === '+',
           real: obj === '-',
-          active: obj !== '=' && obj !== '+',
+          active: obj !== '=' && obj !== '+' && obj !== GATE,
           blocked: BLOCKING.has(obj),
+          lava: obj === LAVA,
+          pit: obj === PIT,
+          fanDir: FAN_DIRS[obj] ?? null,
+          fragile: obj === FRAGILE,
+          plate: obj === PLATE,
+          gate: obj === GATE,
+          mirror: MIRRORS.has(obj) ? obj : null,
+          receptor: obj === RECEPTOR,
         });
       }
     }
@@ -167,6 +182,15 @@ export class Level {
     this.palette = paletteOf(def.mood); // couleurs du sol, de la végétation… selon l'émotion
     this.disposables = [];
     this.animated = { gems: [], decor: [], rocks: [], ghosts: [], trees: [], portals: [], platforms: [], trampolines: [], mirrors: [], fires: [], caves: [], altars: [] };
+    this.fans = [];
+    this.lavaFields = [];
+    this.plates = [];
+    this.gates = [];
+    this.emitters = [];
+    this.receptors = [];
+    this.fragiles = [];
+    this.gatesOpen = false;
+    this.clock = 0; // temps de jeu (cycles de lave et de vent)
     this.altars = [];
     this.forge = null;
     this.key = null;
@@ -209,6 +233,7 @@ export class Level {
 
     for (const f of this.faces) this.buildFace(f);
     this.buildRays();
+    this.traceBeams();
     this.buildFloatingRocks();
     this.curioTotal = this.curios.length;
     this.hasMirror = this.animated.mirrors.length > 0;
@@ -298,7 +323,7 @@ export class Level {
   buildFace(face) {
     const S = this.shared;
     const rnd = this.rnd;
-    const ground = face.list.filter((t) => !t.bridge && !t.platform);
+    const ground = face.list.filter((t) => !t.bridge && !t.platform && !t.pit);
     const flipLevel = this.canFlip;
     this.flipper.add(face.group);
 
@@ -312,7 +337,7 @@ export class Level {
     const occSideTop = new Float32Array(Math.max(1, ground.length) * 4);
     const neighborH = (t, d) => {
       const n = face.tileAt(t.x + DIRS[d][0], t.z + DIRS[d][1]);
-      return n && !n.bridge && !n.platform ? n.h : null;
+      return n && !n.bridge && !n.platform && !n.pit ? n.h : null;
     };
     const sideGeo = S.blockGeo.clone();
     const topGeo = S.blockGeo.clone();
@@ -392,6 +417,13 @@ export class Level {
     this.disposables.push(...merged.map((m) => m.geometry));
     for (const p of this.platforms) if (p.face === face) this.buildPlatform(p);
     for (const j of this.jumps) if (j.face === face) this.buildJumpArc(j);
+    const lava = face.list.filter((t) => t.lava);
+    if (lava.length) {
+      const field = HZ.createLavaField(lava, face, this.palette.biome?.liquid?.[1] ?? 0xff6a2a);
+      face.group.add(field.mesh);
+      this.lavaFields.push(field);
+      this.disposables.push(field.mat, field.geo, field.mesh);
+    }
     if (face.side === 2) {
       const shell = SA.buildCaveShell(face, rnd, this.palette);
       face.group.add(shell.group);
@@ -589,6 +621,92 @@ export class Level {
         prop.position.copy(pos);
         this.animated.caves.push(prop);
         this.disposables.push(prop.userData.holeMat ?? prop.userData.beamMat, prop.userData.ringMat ?? prop.userData.holeMat);
+        break;
+      }
+      case PUSH_BLOCK: {
+        prop = HZ.createBlock(this.kit.stone);
+        prop.position.copy(pos);
+        t.block = prop;
+        this.disposables.push(prop.userData.runeMat);
+        break;
+      }
+      case FRAGILE: {
+        const slab = HZ.createFragileSlab(this.shared.blockGeo, this.kit.stone);
+        slab.position.set(pos.x, pos.y - STEP / 2, pos.z);
+        t.slab = slab;
+        t.slabY = slab.position.y;
+        face.group.add(slab);
+        this.fragiles.push(t);
+        this.disposables.push(slab.userData.crackMat);
+        break;
+      }
+      case GATE: {
+        // dalle-porte : comme un pont, mais tenue par les plaques de pression
+        const slab = new THREE.Mesh(this.shared.blockGeo, this.gateMat ??= patchIridescent(new THREE.MeshStandardMaterial({ color: 0x8fe8ff, emissive: 0x3fd8ff, emissiveIntensity: 0.25, roughness: 0.3, metalness: 0.2 }), 0.6));
+        slab.castShadow = true;
+        slab.receiveShadow = true;
+        slab.position.set(pos.x, pos.y - STEP / 2, pos.z);
+        slab.visible = false;
+        t.slab = slab;
+        t.slabY = slab.position.y;
+        face.group.add(slab);
+        const ghost = P.createGhostBlock(BLOCK, STEP - 0.02);
+        ghost.position.copy(slab.position);
+        t.ghost = ghost;
+        face.group.add(ghost);
+        this.gates.push(t);
+        break;
+      }
+      case PLATE: {
+        prop = HZ.createPlate();
+        prop.position.copy(pos);
+        this.plates.push(t);
+        this.disposables.push(prop.userData.capMat);
+        break;
+      }
+      case EMITTER: {
+        const beam = (this.def.beams ?? []).find((b) => b.at[0] === t.x && b.at[1] === t.z && (b.side ?? 0) === face.side);
+        const dir = FAN_DIRS[beam?.dir] ?? this.facing(t);
+        prop = HZ.createEmitter(this.kit.stone, dir);
+        prop.position.copy(pos);
+        this.emitters.push({ tile: t, dir, line: new HZ.BeamLine(face.group) });
+        break;
+      }
+      case '/':
+      case '\\': {
+        prop = HZ.createRotor(this.kit.stone);
+        prop.position.copy(pos);
+        prop.userData.pivot.rotation.y = HZ.rotorAngle(t.mirror);
+        t.rotor = { type: 'rotor', name: 'le miroir orientable', tile: t, prop };
+        this.disposables.push(prop.userData.glass);
+        break;
+      }
+      case RECEPTOR: {
+        prop = HZ.createReceptor(this.kit.stone);
+        prop.position.copy(pos);
+        this.receptors.push(t);
+        this.disposables.push(prop.userData.mat);
+        break;
+      }
+      case PIT: {
+        prop = HZ.createPitMarker();
+        prop.position.set(pos.x, pos.y - 0.01, pos.z);
+        this.disposables.push(prop.userData.mat);
+        break;
+      }
+      case '<':
+      case '>':
+      case '^':
+      case 'v': {
+        prop = HZ.createFan(this.kit.stone, t.fanDir);
+        prop.position.copy(pos);
+        const fan = { tile: t, dir: t.fanDir, prop, phase: this.fans.length * 1.3, on: false };
+        const lane = this.lane(fan);
+        const streaks = HZ.createWindStreaks(pos, t.fanDir, Math.max(1, lane.length), this.palette.biome?.atmo?.color ?? 0xdff4ff);
+        face.group.add(streaks.points);
+        fan.streaks = streaks;
+        this.disposables.push(streaks.mat, streaks.points.geometry);
+        this.fans.push(fan);
         break;
       }
       case 'Z': {
@@ -921,6 +1039,322 @@ export class Level {
     this.track({ duration: 1.2, onUpdate: (k, raw) => (mat.uniforms.uBoost.value = Math.sin(raw * Math.PI)) });
   }
 
+  /* ───────────── Obstacles ───────────── */
+
+  // Lave : 0 = croûte froide, 1 = brûlante ; `warn` monte juste avant
+  get lavaState() {
+    const c = HZ.LAVA_CYCLE;
+    const k = this.clock % c.period;
+    const hot = k >= c.hot ? 1 : 0;
+    const warn = k >= c.warn ? Math.min(1, (k - c.warn) / (c.hot - c.warn)) : 0;
+    return { hot, warn };
+  }
+
+  isScorching(tile) {
+    return !!tile?.lava && this.lavaState.hot > 0;
+  }
+
+  fanOn(fan) {
+    const c = HZ.WIND_CYCLE;
+    return (this.clock + fan.phase) % c.period < c.on;
+  }
+
+  // Cases balayées par la bourrasque : jusqu'au premier obstacle ou mur
+  lane(fan, max = 7) {
+    const out = [];
+    let cur = fan.tile;
+    for (let i = 0; i < max; i++) {
+      const n = cur.layer.tileAt(cur.x + fan.dir[0], cur.z + fan.dir[1]);
+      if (!n || !n.active || (n.blocked && !n.pit) || n.h > cur.h + 1) break;
+      out.push(n);
+      cur = n;
+    }
+    return out;
+  }
+
+  // Éolienne active dont le couloir contient `tile`
+  windAt(tile) {
+    for (const f of this.fans) if (f.tile.layer === tile.layer && this.fanOn(f) && this.lane(f).includes(tile)) return f;
+    return null;
+  }
+
+  // Trajet de Lumi poussé par le vent : il glisse tant que rien ne l'arrête ;
+  // `fall` = il est emporté dans le vide (ou une fosse) au bout du trajet
+  windPath(tile, dir) {
+    const path = [];
+    let cur = tile;
+    for (let i = 0; i < 12; i++) {
+      const n = cur.layer.tileAt(cur.x + dir[0], cur.z + dir[1]);
+      if (!n || !n.active || n.pit) return { path, fall: true, from: cur };
+      if (n.blocked || n.h > cur.h) return { path, fall: false };
+      path.push(n);
+      cur = n;
+    }
+    return { path, fall: false };
+  }
+
+  // Un bloc peut-il glisser d'une case dans la direction (dx, dz) ?
+  pushTarget(tile, dx, dz) {
+    if (!tile?.block) return null;
+    const n = tile.layer.tileAt(tile.x + dx, tile.z + dz);
+    if (!n || !n.active || n.npc || n.curio || n.altar || n.platform || n.jumpTo) return null;
+    if (n.pit) return n.h <= tile.h ? n : null; // il tombe dans la fosse
+    if (n.blocked || n.bridge) return null;
+    if (!['.', 'M', 'C', '~', PLATE].includes(n.obj)) return null;
+    return n.h <= tile.h && tile.h - n.h <= 1 ? n : null;
+  }
+
+  // Pousse le bloc : il glisse (et comble fosse ou lave). Renvoie la case d'arrivée.
+  pushBlock(tile, dx, dz, onDone) {
+    const to = this.pushTarget(tile, dx, dz);
+    if (!to) return null;
+    const block = tile.block;
+    const face = tile.layer;
+    const from = block.position.clone();
+    const dest = face.local(to, new THREE.Vector3());
+    const fills = to.pit || to.lava;
+    const intoPit = to.pit;
+    // logique immédiate : la case quittée se libère, l'arrivée est occupée (ou comblée)
+    tile.block = null;
+    tile.blocked = false;
+    tile.obj = '.';
+    this.updatePick(tile);
+    if (fills) {
+      to.pit = false;
+      to.lava = false;
+      to.blocked = false;
+      to.obj = '.';
+      to.filled = true;
+    } else {
+      to.block = block;
+      to.blocked = true;
+      to.obj = PUSH_BLOCK;
+    }
+    this.updatePick(to);
+    this.track({
+      duration: fills ? 0.55 : 0.32,
+      ease: fills ? ease.inCubic : ease.outCubic,
+      onUpdate: (k) => {
+        block.position.lerpVectors(from, dest, Math.min(1, k * (fills ? 1.6 : 1)));
+        if (!fills) return;
+        // il s'enfonce jusqu'à affleurer ; dans une fosse, il devient une colonne
+        // de pierre jusqu'au pied de l'île
+        const top = dest.y + 0.8 * (1 - k);
+        if (intoPit) {
+          block.position.y = 0;
+          block.scale.y = Math.max(0.01, top / 0.8);
+        } else block.position.y = top - 0.8;
+      },
+      onComplete: () => {
+        if (fills) {
+          block.userData.runeMat.opacity = 0.15;
+          this.coverLava(to);
+        }
+        onDone?.(to, fills);
+      },
+    });
+    // marqueur de fosse : il disparaît une fois comblée
+    if (fills && to.prop && to.prop !== block) to.prop.visible = false;
+    if (fills) to.prop = block;
+    return to;
+  }
+
+  /* ── Dalles fragiles ── */
+
+  // Lumi est dessus : les fissures rougeoient
+  crackFragile(tile, on) {
+    if (!tile?.fragile || tile.crumbled) return;
+    tile.slab.userData.crackMat.opacity = on ? 0.9 : 0.25;
+  }
+
+  // La dalle cède et tombe dans le vide
+  crumble(tile) {
+    if (!tile?.fragile || tile.crumbled) return false;
+    tile.crumbled = true;
+    tile.active = false;
+    this.updatePick(tile);
+    const slab = tile.slab;
+    const y0 = tile.slabY;
+    const spin = (this.rnd() - 0.5) * 2;
+    this.track({
+      duration: 0.9,
+      ease: ease.inCubic,
+      onUpdate: (k) => {
+        slab.position.y = y0 - k * 5;
+        slab.rotation.set(k * spin, 0, k * spin * 0.6);
+        slab.scale.setScalar(Math.max(0.01, 1 - k * 0.6));
+      },
+      onComplete: () => (slab.visible = false),
+    });
+    return true;
+  }
+
+  // Reprise après une chute : les dalles se reforment
+  restoreFragile() {
+    for (const t of this.fragiles) {
+      if (!t.crumbled) continue;
+      t.crumbled = false;
+      t.active = true;
+      const slab = t.slab;
+      slab.visible = true;
+      slab.rotation.set(0, 0, 0);
+      this.track({
+        duration: 0.6,
+        ease: ease.outBack,
+        onUpdate: (k) => {
+          slab.position.y = t.slabY - (1 - k) * 2;
+          slab.scale.setScalar(Math.max(0.01, k));
+        },
+      });
+      this.updatePick(t);
+      this.crackFragile(t, false);
+    }
+  }
+
+  /* ── Plaques et dalles-portes ── */
+
+  // Toutes les plaques enfoncées (par un bloc, ou par Lumi sur `playerTile`) ?
+  platesPressed(playerTile) {
+    return this.plates.length > 0 && this.plates.every((p) => p.block || p === playerTile);
+  }
+
+  // Ouvre ou ferme les dalles-portes ; renvoie 'open', 'close' ou null
+  updateGates(playerTile) {
+    for (const p of this.plates) {
+      const u = p.prop.userData;
+      const down = p.block || p === playerTile ? 1 : 0;
+      if (u.pressed === down) continue;
+      u.pressed = down;
+      u.cap.position.y = down ? 0.05 : 0.08;
+      u.capMat.emissiveIntensity = down ? 1.6 : 0.4;
+    }
+    const open = this.platesPressed(playerTile);
+    if (open === this.gatesOpen) return null;
+    this.gatesOpen = open;
+    this.gates.forEach((t, i) => {
+      t.active = open;
+      this.updatePick(t);
+      const slab = t.slab;
+      this.track({
+        delay: i * 0.08,
+        duration: open ? 0.45 : 0.3,
+        ease: open ? ease.outBack : ease.inCubic,
+        onStart: () => (slab.visible = true),
+        onUpdate: (k) => {
+          const v = open ? k : 1 - k;
+          slab.scale.setScalar(Math.max(0.01, v));
+          t.ghost.visible = v < 0.6;
+        },
+        onComplete: () => (slab.visible = open),
+      });
+    });
+    return open ? 'open' : 'close';
+  }
+
+  /* ── Rayons ── */
+
+  // Recalcule le trajet de chaque rayon ; renvoie les récepteurs nouvellement touchés
+  traceBeams() {
+    const lit = [];
+    for (const r of this.receptors) r.hit = false;
+    for (const e of this.emitters) {
+      const face = e.tile.layer;
+      const y = beamHeight(e.tile.h);
+      const pts = [face.local(e.tile, new THREE.Vector3()).setY(y)];
+      let [dx, dz] = e.dir;
+      let x = e.tile.x;
+      let z = e.tile.z;
+      for (let i = 0; i < 40; i++) {
+        x += dx;
+        z += dz;
+        const end = new THREE.Vector3(x - face.offsetX, y, z - face.offsetZ);
+        if (x < -2 || z < -2 || x > face.W + 1 || z > face.H + 1) {
+          pts.push(end);
+          break;
+        }
+        const t = face.tileAt(x, z);
+        if (!t || (!t.active && !t.blocked)) continue; // il file au-dessus du vide
+        if (face.top(t) > y) {
+          pts.push(end.setY(y)); // mur
+          break;
+        }
+        if (t.mirror) {
+          pts.push(end);
+          [dx, dz] = reflect(t.mirror, [dx, dz]);
+          continue;
+        }
+        if (t.receptor) {
+          pts.push(end);
+          t.hit = true;
+          break;
+        }
+        if (t.blocked) {
+          pts.push(end);
+          break;
+        }
+      }
+      e.line.set(pts);
+    }
+    for (const r of this.receptors) {
+      if (r.hit && !r.lit) {
+        r.lit = true;
+        lit.push(r);
+        const u = r.prop.userData;
+        this.track({
+          duration: 0.8,
+          onUpdate: (k) => {
+            u.mat.emissiveIntensity = 2.2 * k;
+            u.halo.material.opacity = 0.6 * k;
+          },
+        });
+      }
+    }
+    return lit;
+  }
+
+  // Fait pivoter un miroir d'un quart de tour (/ ↔ \) ; renvoie les récepteurs touchés
+  rotateMirror(tile) {
+    if (!tile?.mirror) return [];
+    tile.mirror = tile.mirror === '/' ? '\\' : '/';
+    const pivot = tile.prop.userData.pivot;
+    const from = pivot.rotation.y;
+    const to = from + Math.PI / 2;
+    this.track({ duration: 0.35, ease: ease.outBack, onUpdate: (k) => (pivot.rotation.y = from + (to - from) * k) });
+    return this.traceBeams();
+  }
+
+  // Lanterne devenue point de reprise : halo chaud autour d'elle (l'ancienne s'éteint)
+  lightLantern(tile) {
+    if (!this.checkpointGlow) {
+      this.checkpointGlow = HZ.createCheckpointGlow();
+      this.disposables.push(this.checkpointGlow.material);
+    }
+    const g = this.checkpointGlow;
+    tile.layer.group.add(g);
+    // (lanterne et halo partagent le repère de la face)
+    if (tile.prop) g.position.copy(tile.prop.position);
+    else tile.layer.local(tile, g.position);
+    g.position.y += 0.5;
+    this.track({ duration: 0.8, onUpdate: (k) => (g.material.opacity = 0.7 * k) });
+  }
+
+  // Une case de lave comblée n'est plus dessinée comme de la lave
+  coverLava(tile) {
+    for (const f of this.lavaFields) {
+      const m = new THREE.Matrix4();
+      for (let i = 0; i < f.mesh.count; i++) {
+        f.mesh.getMatrixAt(i, m);
+        const x = Math.round(m.elements[12] + tile.layer.offsetX);
+        const z = Math.round(m.elements[14] + tile.layer.offsetZ);
+        if (x === tile.x && z === tile.z) {
+          m.makeScale(0, 0, 0);
+          f.mesh.setMatrixAt(i, m);
+          f.mesh.instanceMatrix.needsUpdate = true;
+        }
+      }
+    }
+  }
+
   /* ───────────── Sanctuaire ───────────── */
 
   // Rayons autel → forge (cachés tant que la gemme n'est pas posée)
@@ -1099,6 +1533,7 @@ export class Level {
     for (const [dx, dz] of DIRS) {
       const n = tile.layer.tileAt(tile.x + dx, tile.z + dz);
       if (n?.curio) return { curio: n.curio };
+      if (n?.rotor) return { rotor: n.rotor };
     }
     return null;
   }
@@ -1282,6 +1717,25 @@ export class Level {
       this.kit.realLine.opacity = this.mirrored ? pulse : 0.1;
     }
 
+    this.clock = t;
+    if (this.lavaFields.length) {
+      const { hot, warn } = this.lavaState;
+      for (const f of this.lavaFields) {
+        const u = f.mat.uniforms;
+        u.uHot.value += (hot - u.uHot.value) * Math.min(1, dt * 10);
+        u.uWarn.value = warn;
+      }
+    }
+    for (const f of this.fans) {
+      const on = this.fanOn(f);
+      f.on = on;
+      const u = f.prop.userData;
+      u.spin += dt * (on ? 14 : 1.2);
+      u.hub.rotation.z = u.spin;
+      const s = f.streaks.mat.uniforms.uOn;
+      s.value += ((on ? 1 : 0) - s.value) * Math.min(1, dt * 6);
+    }
+
     for (const c of this.animated.caves) {
       const u = c.userData;
       if (u.halo) u.halo.material.opacity = 0.28 + Math.sin(t * 2.2) * 0.08;
@@ -1326,6 +1780,8 @@ export class Level {
     for (const d of this.disposables) d.dispose?.();
     for (const npc of this.npcs) npc.dispose();
     this.jumpDotMat?.dispose();
+    this.gateMat?.dispose();
+    for (const e of this.emitters) e.line.mat.dispose();
     if (this.key) {
       this.key.userData.mat.dispose();
       this.key.userData.gemMat.dispose();

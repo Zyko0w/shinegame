@@ -80,6 +80,8 @@ export class Dialogue {
     };
     this.raf = requestAnimationFrame(tick);
 
+    // réplique sans enregistrement possible (vœu écrit par le joueur) : muette
+    if (line.silent) return;
     this.onSpeak?.(line.who, true);
     this.voice.say(line.text, sp, () => this.onSpeak?.(line.who, false), line.key);
   }

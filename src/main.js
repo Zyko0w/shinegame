@@ -18,6 +18,7 @@ import { COLORS, makeHalo } from './world/props.js';
 import { globalUniforms } from './world/materials.js';
 import { LEVELS } from './game/levels.js';
 import { findPath } from './game/pathfinding.js';
+import { createObstacles } from './game/obstacles.js';
 import { PointerInput } from './input/pointer.js';
 import { KeyboardInput } from './input/keyboard.js';
 import { PadController } from './input/padController.js';
@@ -32,6 +33,7 @@ import { Tutorials } from './ui/tutorial.js';
 import { EMOTIONS } from './world/npc.js';
 import { LUMI_VOICE } from './game/levels.js';
 import { CURIO_INFO, curioText, telescopeEyepiece } from './world/curios.js';
+import { DEFAULT_WISHES, SKY_FALLBACK, wishKey } from './game/curioTexts.js';
 import { createSkyView } from './world/celestial.js';
 
 /* ═════════════ Scène & rendu ═════════════ */
@@ -269,6 +271,7 @@ function loadLevel(index) {
   game.level = level;
   scene.add(level.root);
   player.place(level, level.start);
+  obstacles.reset();
   cursor.hide();
   pointer.hoverTile = null;
   lights.fitShadow(level);
@@ -423,6 +426,22 @@ player.onStep = () => {
   }
 };
 
+// Blocs, vent, lave, chutes et lanternes de reprise (voir game/obstacles.js)
+const obstacles = createObstacles({
+  game,
+  player,
+  particles,
+  sfx,
+  ui,
+  rig,
+  pad: { rumble: (...a) => pad.rumble(...a) },
+  tweens,
+  playing,
+  refreshPointer: () => pointer.refresh(),
+  hint: (key, color) => hintOnce(key, color),
+  teach: (id) => tutorials.teach(id),
+});
+
 player.onArrive = (tile) => {
   if (tile.obj === 'R' && playing()) passMirror(tile);
   if (tile.obj === 'G' && !tile.collected) collectGem(tile);
@@ -431,6 +450,7 @@ player.onArrive = (tile) => {
   if (tile.obj === 'Z' && playing()) placeAltar(tile);
   // mécaniques déclenchées seulement quand Lumi s'arrête sur la case
   const stopped = player.queue.length === 0 && playing();
+  if (obstacles.onArrive(tile, stopped)) return pointer.refresh();
   if (stopped && tile.platform) ridePlatform(tile);
   if (stopped && tile.obj === 'O') flipIsland(tile);
   if (stopped && tile.jumpTo) launchJump(tile);
@@ -649,7 +669,7 @@ function curioSpeakers(curio, level, color = '#ffd47a') {
 
 function playLines(curio, level, lines, color) {
   return dialogue.play(
-    lines.map((l, i) => ({ ...l, key: `${level.def.id}/curio/${curio.id}/${i}` })),
+    lines.map((l, i) => ({ ...l, key: l.key ?? `${level.def.id}/curio/${curio.id}/${i}` })),
     curioSpeakers(curio, level, color),
     (who, on) => who === 'lumi' && (player.talking = on),
   );
@@ -722,7 +742,7 @@ function askWish(curio) {
   document.getElementById('wish-title').textContent = curio.name.replace(/^./, (c) => c.toUpperCase());
   const box = document.getElementById('wish-options');
   box.innerHTML = '';
-  for (const w of curio.def?.wishes ?? ['Qu’elle ouvre enfin les yeux', 'Que mes amis soient heureux', 'Voyager encore plus loin']) {
+  for (const w of curio.def?.wishes ?? DEFAULT_WISHES) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'wish-opt';
@@ -825,8 +845,10 @@ async function makeWish(curio, text) {
   spark.removeFromParent();
   spark.material.dispose();
   if (game.level !== level) return;
+  // vœu proposé : enregistré ; vœu écrit par le joueur : affiché sans voix
+  const offered = (curio.def?.wishes ?? DEFAULT_WISHES).includes(wish);
   await playLines(curio, level, [
-    { who: 'lumi', text: `« ${wish} »` },
+    { who: 'lumi', text: `« ${wish} »`, ...(offered ? { key: wishKey(wish) } : { silent: true }) },
     { who: 'souvenir', text },
   ]);
   await endCinematic(shot);
@@ -933,7 +955,7 @@ async function observe(curio) {
   sfx.discover();
   tweens.add({ duration: 3.2, ease: (x) => x, onUpdate: (k) => (sv.k = k) });
   await wait(900);
-  await playLines(curio, level, curio.def?.lines ?? [{ who: 'lumi', text: 'Le ciel est immense, vu d’ici.' }], '#9fd8ff');
+  await playLines(curio, level, curio.def?.lines ?? SKY_FALLBACK, '#9fd8ff');
   if (game.level !== level) return;
 
   // retour : fondu, profil, Lumi se redresse
@@ -996,6 +1018,7 @@ function interact() {
   const near = game.level.interactableNear(player.tile);
   if (near?.npc) startDialogue(near.npc);
   else if (near?.curio) useCurio(near.curio);
+  else if (near?.rotor) obstacles.rotate(near.rotor.tile);
 }
 
 // Invite « Espace — Parler à … / Visiter la maison » quand Lumi est à côté
@@ -1011,7 +1034,7 @@ function setTalkPrompt(target) {
     document.getElementById('talk-verb').textContent = curio ? CURIO_INFO[curio.type].verb : 'Parler à';
     document.getElementById('talk-name').textContent = curio ? curio.name : target.def.name.split(',')[0];
     document.getElementById('talk-key').textContent = pad.connected && document.body.classList.contains('pad-nav') ? 'A' : keyLabel(settings.get('bindings.interact'));
-    if (curio && !tutorials.has('curio')) tutorials.teach('curio');
+    if (curio && curio.type !== 'rotor' && !tutorials.has('curio')) tutorials.teach('curio');
   }
 }
 talkPrompt.addEventListener('click', interact);
@@ -1069,6 +1092,7 @@ async function flipIsland(tile) {
     rig.shake(0.06);
     level.flip((portal) => {
       player.place(level, portal);
+      obstacles.setCheckpoint(portal);
       player.locked = true;
       player.appear();
       const w = level.worldOf(portal, new THREE.Vector3());
@@ -1120,6 +1144,7 @@ async function enterCave(tile) {
   sky.setMood(down ? 'cave' : level.def.mood);
   lights.fitShadow(level);
   player.place(level, exit);
+  obstacles.setCheckpoint(exit);
   player.locked = true;
   player.appear();
   player.drop(down ? 3.2 : 1.2);
@@ -1333,7 +1358,8 @@ function completeLevel(tile) {
 // Chemin vers une case ; pour un personnage ou une curiosité, vers la case
 // voisine la plus proche
 function pathTo(tile) {
-  if (!tile.npc && !tile.curio) return findPath(game.level, player.nextTile, tile);
+  if (tile.block) return obstacles.pathToBlock(tile)?.path ?? null;
+  if (!tile.npc && !tile.curio && !tile.rotor) return findPath(game.level, player.nextTile, tile);
   let best = null;
   for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
     const n = tile.layer.tileAt(tile.x + dx, tile.z + dz);
@@ -1358,6 +1384,13 @@ const pointer = new PointerInput({
   },
   onHoverEnd: () => cursor.hide(),
   onSelect(tile, path) {
+    if (tile.block || tile.rotor) {
+      const ok = path && obstacles.select(tile);
+      cursor.click(game.level, tile, !!ok);
+      if (ok) sfx.click();
+      else sfx.deny();
+      return;
+    }
     const target = tile.npc ?? tile.curio;
     if (target && path) {
       cursor.click(game.level, tile, true);
@@ -1493,6 +1526,7 @@ function stepFromInput() {
   const dz = dx ? 0 : Math.sign(mz);
   const cur = player.tile;
   const next = game.level.tileAt(cur.x + dx, cur.z + dz);
+  if (obstacles.tryStep(cur, next, dx, dz)) return;
   if (next && game.level.canStep(cur, next)) {
     player.walk([next]);
   } else if (bumpCooldown <= 0) {
@@ -1559,6 +1593,7 @@ function frame(timestamp) {
   game.level?.update(gameTime, gdt);
   if (skyView) skyView.reveal(skyView.k ?? 0, t);
   player.update(gdt, gameTime);
+  obstacles.tick();
   particles.update(gdt, t);
   cursor.update(t, dt);
 
@@ -1585,7 +1620,7 @@ function frame(timestamp) {
   stats.addFrame(rawDt * 1000, performance.now() - t0);
   perfHud.update(rawDt);
   const near = playing() && !player.moving && !player.locked && game.level ? game.level.interactableNear(player.tile) : null;
-  setTalkPrompt(near?.npc ?? near?.curio ?? null);
+  setTalkPrompt(near?.npc ?? near?.curio ?? near?.rotor ?? null);
   sfx.setCrackle?.(0.004 + Math.min(1, Math.hypot(player.vel.x, player.vel.z) / 4) * 0.01);
   settingsPanel.updateLive(rawDt);
 }
@@ -1598,6 +1633,6 @@ startLoop();
 
 if (import.meta.env.DEV) {
   import('./dev/devtools.js').then(({ installDevtools }) =>
-    installDevtools({ game, scene, composer, gfx, quality, settings, player, rig, tweens, goToLevel, pathTo, voice }),
+    installDevtools({ game, scene, composer, gfx, quality, settings, player, rig, tweens, goToLevel, pathTo, voice, obstacles }),
   );
 }

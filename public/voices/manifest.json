@@ -250,5 +250,189 @@
   "passerelle/outro": {
     "file": "voices/passerelle/outro.mp3",
     "hash": "ee084a6f3e8c"
+  },
+  "orion/curio/0:1,10/0": {
+    "file": "voices/orion/curio-0-1-10-0.mp3",
+    "hash": "8f54bbeb761d"
+  },
+  "orion/curio/0:1,10/1": {
+    "file": "voices/orion/curio-0-1-10-1.mp3",
+    "hash": "2861d73a9b1b"
+  },
+  "orion/curio/0:1,10/2": {
+    "file": "voices/orion/curio-0-1-10-2.mp3",
+    "hash": "ec0a58593e06"
+  },
+  "orion/curio/0:0,13/0": {
+    "file": "voices/orion/curio-0-0-13-0.mp3",
+    "hash": "f2ae9d4a6f5b"
+  },
+  "orion/curio/0:0,13/1": {
+    "file": "voices/orion/curio-0-0-13-1.mp3",
+    "hash": "21ccb46e43db"
+  },
+  "orion/curio/0:0,13/2": {
+    "file": "voices/orion/curio-0-0-13-2.mp3",
+    "hash": "a767542c049b"
+  },
+  "vega/curio/0:8,2/0": {
+    "file": "voices/vega/curio-0-8-2-0.mp3",
+    "hash": "97e095c1251f"
+  },
+  "vega/curio/0:8,2/1": {
+    "file": "voices/vega/curio-0-8-2-1.mp3",
+    "hash": "10f37b84b3c6"
+  },
+  "vega/curio/0:8,2/2": {
+    "file": "voices/vega/curio-0-8-2-2.mp3",
+    "hash": "992c0d783171"
+  },
+  "vega/curio/0:9,3/0": {
+    "file": "voices/vega/curio-0-9-3-0.mp3",
+    "hash": "16a9668dfcb3"
+  },
+  "lyra/curio/0:9,2/1": {
+    "file": "voices/lyra/curio-0-9-2-1.mp3",
+    "hash": "6a6c425a21aa"
+  },
+  "lyra/curio/0:3,7/0": {
+    "file": "voices/lyra/curio-0-3-7-0.mp3",
+    "hash": "e733224c462e"
+  },
+  "lyra/curio/0:3,7/1": {
+    "file": "voices/lyra/curio-0-3-7-1.mp3",
+    "hash": "651c0b2bc4c5"
+  },
+  "lyra/curio/0:3,7/2": {
+    "file": "voices/lyra/curio-0-3-7-2.mp3",
+    "hash": "93fd9e8e321f"
+  },
+  "andromede/curio/0:11,2/0": {
+    "file": "voices/andromede/curio-0-11-2-0.mp3",
+    "hash": "e02f3ac18d5a"
+  },
+  "andromede/curio/0:11,2/1": {
+    "file": "voices/andromede/curio-0-11-2-1.mp3",
+    "hash": "f41581bf2085"
+  },
+  "andromede/curio/0:11,2/2": {
+    "file": "voices/andromede/curio-0-11-2-2.mp3",
+    "hash": "ec1c32d5aadf"
+  },
+  "andromede/curio/0:7,3/0": {
+    "file": "voices/andromede/curio-0-7-3-0.mp3",
+    "hash": "2935385840fa"
+  },
+  "betelgeuse/curio/0:6,4/0": {
+    "file": "voices/betelgeuse/curio-0-6-4-0.mp3",
+    "hash": "4c962127c65d"
+  },
+  "betelgeuse/curio/0:6,4/1": {
+    "file": "voices/betelgeuse/curio-0-6-4-1.mp3",
+    "hash": "a8caa2c8525d"
+  },
+  "betelgeuse/curio/0:6,4/2": {
+    "file": "voices/betelgeuse/curio-0-6-4-2.mp3",
+    "hash": "ad54515afc66"
+  },
+  "antares/curio/0:3,4/0": {
+    "file": "voices/antares/curio-0-3-4-0.mp3",
+    "hash": "2cc896730483"
+  },
+  "antares/curio/0:3,4/1": {
+    "file": "voices/antares/curio-0-3-4-1.mp3",
+    "hash": "0c6c1b08e82d"
+  },
+  "antares/curio/0:3,4/2": {
+    "file": "voices/antares/curio-0-3-4-2.mp3",
+    "hash": "5c8028981ed2"
+  },
+  "antares/curio/0:4,6/1": {
+    "file": "voices/antares/curio-0-4-6-1.mp3",
+    "hash": "8e43813fadc2"
+  },
+  "alcor/curio/0:13,5/0": {
+    "file": "voices/alcor/curio-0-13-5-0.mp3",
+    "hash": "af6db44f7b1a"
+  },
+  "alcor/curio/0:13,5/1": {
+    "file": "voices/alcor/curio-0-13-5-1.mp3",
+    "hash": "2c9482c32283"
+  },
+  "alcor/curio/0:13,5/2": {
+    "file": "voices/alcor/curio-0-13-5-2.mp3",
+    "hash": "1c87e87e5ec6"
+  },
+  "alcor/curio/0:0,8/0": {
+    "file": "voices/alcor/curio-0-0-8-0.mp3",
+    "hash": "8550579eee9c"
+  },
+  "alcor/curio/0:10,8/0": {
+    "file": "voices/alcor/curio-0-10-8-0.mp3",
+    "hash": "2eaefab921e2"
+  },
+  "alcor/curio/0:10,8/1": {
+    "file": "voices/alcor/curio-0-10-8-1.mp3",
+    "hash": "f812a31bcf95"
+  },
+  "alcor/curio/0:10,8/2": {
+    "file": "voices/alcor/curio-0-10-8-2.mp3",
+    "hash": "a7d75de9421d"
+  },
+  "merope/curio/0:2,4/1": {
+    "file": "voices/merope/curio-0-2-4-1.mp3",
+    "hash": "d08265605746"
+  },
+  "merope/curio/0:1,5/0": {
+    "file": "voices/merope/curio-0-1-5-0.mp3",
+    "hash": "972868b4a4cf"
+  },
+  "merope/curio/0:1,5/1": {
+    "file": "voices/merope/curio-0-1-5-1.mp3",
+    "hash": "f33243dc959d"
+  },
+  "merope/curio/0:1,5/2": {
+    "file": "voices/merope/curio-0-1-5-2.mp3",
+    "hash": "7ea831eb0df5"
+  },
+  "merope/curio/2:4,6/0": {
+    "file": "voices/merope/curio-2-4-6-0.mp3",
+    "hash": "27fa20425907"
+  },
+  "wish/que-lyre-ne-soit-plus-jamais-seul": {
+    "file": "voices/wish/que-lyre-ne-soit-plus-jamais-seul.mp3",
+    "hash": "212d946e520a"
+  },
+  "wish/que-les-iles-se-rapprochent": {
+    "file": "voices/wish/que-les-iles-se-rapprochent.mp3",
+    "hash": "fecba13ae85c"
+  },
+  "wish/revoir-un-ami-perdu-de-vue": {
+    "file": "voices/wish/revoir-un-ami-perdu-de-vue.mp3",
+    "hash": "685e20afae0c"
+  },
+  "wish/que-la-colere-d-antar-s-apaise": {
+    "file": "voices/wish/que-la-colere-d-antar-s-apaise.mp3",
+    "hash": "305016c831b9"
+  },
+  "wish/avoir-le-courage-de-pardonner": {
+    "file": "voices/wish/avoir-le-courage-de-pardonner.mp3",
+    "hash": "0330edffd0e1"
+  },
+  "wish/une-forge-qui-cree-au-lieu-de-detruire": {
+    "file": "voices/wish/une-forge-qui-cree-au-lieu-de-detruire.mp3",
+    "hash": "dd51833140dc"
+  },
+  "wish/oser-se-montrer-telle-qu-elle-est": {
+    "file": "voices/wish/oser-se-montrer-telle-qu-elle-est.mp3",
+    "hash": "6b51e50be837"
+  },
+  "wish/se-pardonner-ses-erreurs": {
+    "file": "voices/wish/se-pardonner-ses-erreurs.mp3",
+    "hash": "0450fbf0a94e"
+  },
+  "wish/qu-on-la-regarde-sans-la-juger": {
+    "file": "voices/wish/qu-on-la-regarde-sans-la-juger.mp3",
+    "hash": "27b0e9899bea"
   }
 }

@@ -2,11 +2,16 @@
 // interrupteur → ponts, plateformes (deux stations), portails (deux faces),
 // monde-miroir (R bascule l'état ; + n'existe que dans le reflet, - hors du reflet),
 // grottes (E relie la surface à l'intérieur, face 2), autels du sanctuaire
-// (tous accessibles avant que la clé n'ouvre les ponts).
+// (tous accessibles avant que la clé n'ouvre les ponts), blocs à pousser
+// (exploration façon Sokoban : un bloc comble fosse _ ou lave ~).
+// Dalles fragiles (:) : une seule traversée. Dalles-portes (#) : ouvertes si
+// chaque plaque (o) porte un bloc. Rayons : il doit exister une orientation des
+// miroirs, atteignables, qui guide le rayon jusqu'au récepteur ($).
+// Lave et vent sont des obstacles de timing : supposés franchissables.
 // L'étoile ne doit pas être accessible sans l'interrupteur / sans miroir
 // s'il y en a un. Chaque curiosité doit avoir une case voisine accessible.
 import { LEVELS } from '../src/game/levels.js';
-import { BLOCKING, CURIOS } from '../src/game/tiles.js';
+import { BLOCKING, CURIOS, PUSH_BLOCK, PIT, FRAGILE, PLATE, GATE, EMITTER, MIRRORS, RECEPTOR, FAN_DIRS, reflect, beamHeight, tileTop } from '../src/game/tiles.js';
 
 const DIRS = [
   [1, 0],
@@ -69,41 +74,121 @@ function build(def, issues) {
   return { tiles, platforms };
 }
 
-// Exploration des états (case, dans le reflet ?). Les plateformes sont des
-// liaisons a↔b (Lumi peut toujours faire venir la plateforme à lui).
+// Exploration des états (case, reflet, blocs, fosses comblées). Les plateformes
+// sont des liaisons a↔b (Lumi peut toujours faire venir la plateforme à lui).
+const MAX_STATES = 400000;
 function reachable({ tiles }, start, { bridgesOn, mirrors = true }) {
-  const key = (t, m) => `${t.side}:${t.x},${t.z}:${m ? 1 : 0}`;
-  const ok = (t, m) => t && !t.blocked && (!t.bridge || bridgesOn) && !(t.obj === '+' && !m) && !(t.obj === '-' && m);
-  const seenStates = new Set([key(start, false)]);
+  const tk = (t) => `${t.side}:${t.x},${t.z}`;
+  const at = (t, dx, dz) => tiles.get(`${t.side}:${t.x + dx},${t.z + dz}`);
+  // D et _ changent pendant la partie : seuls les autres objets bloquent pour de bon
+  const fixedBlock = (t) => t.blocked && t.obj !== PUSH_BLOCK && t.obj !== PIT;
+  const isPit = (t, st) => t.obj === PIT && !st.filled.has(tk(t));
+  const plates = [...tiles.values()].filter((t) => t.obj === PLATE).map(tk);
+  const gatesOpen = (st) => plates.length > 0 && plates.every((k) => st.blocks.has(k));
+  const ok = (t, m, st) =>
+    t &&
+    !fixedBlock(t) &&
+    !st.blocks.has(tk(t)) &&
+    !isPit(t, st) &&
+    !st.broken.has(tk(t)) &&
+    !(t.obj === GATE && !gatesOpen(st)) &&
+    (!t.bridge || bridgesOn) &&
+    !(t.obj === '+' && !m) &&
+    !(t.obj === '-' && m);
+  // mêmes règles que Level.pushTarget
+  const pushTo = (b, dx, dz, st) => {
+    const n = at(b, dx, dz);
+    if (!n || n.npc || CURIOS.has(n.obj) || n.obj === 'Z' || n.station || n.jumpTo) return null;
+    if (isPit(n, st)) return n.h <= b.h ? n : null;
+    if (fixedBlock(n) || st.blocks.has(tk(n)) || n.bridge) return null;
+    const obj = n.obj === PUSH_BLOCK || n.obj === PIT ? '.' : n.obj;
+    if (!['.', 'M', 'C', '~', PLATE].includes(obj)) return null;
+    return n.h <= b.h && b.h - n.h <= 1 ? n : null;
+  };
+  const blocks0 = new Set([...tiles.values()].filter((t) => t.obj === PUSH_BLOCK).map(tk));
+  const stateKey = (t, m, st) => `${tk(t)}|${m ? 1 : 0}|${[...st.blocks].sort()}|${[...st.filled].sort()}|${[...st.broken].sort()}`;
+  const first = { t: start, m: false, blocks: blocks0, filled: new Set(), broken: new Set() };
+  const seenStates = new Set([stateKey(start, false, first)]);
   const seen = new Set([start]);
-  const q = [[start, false]];
-  while (q.length) {
-    const [c, m] = q.shift();
+  const q = [first];
+  for (let head = 0; head < q.length; head++) {
+    if (q.length > MAX_STATES) throw new Error('trop d’états à explorer (blocs ?)');
+    const st = q[head];
+    const c = st.t;
     const next = [];
     for (const [dx, dz] of DIRS) {
-      const n = tiles.get(`${c.side}:${c.x + dx},${c.z + dz}`);
-      if (ok(n, m) && Math.abs(n.h - c.h) <= 1) next.push(n);
+      const n = at(c, dx, dz);
+      if (!n || Math.abs(n.h - c.h) > 1) continue;
+      if (st.blocks.has(tk(n))) {
+        // pousser le bloc : il glisse ou comble une fosse / de la lave
+        const to = pushTo(n, dx, dz, st);
+        if (!to) continue;
+        const blocks = new Set(st.blocks);
+        blocks.delete(tk(n));
+        const filled = new Set(st.filled);
+        if (isPit(to, st) || to.obj === '~') filled.add(tk(to));
+        else blocks.add(tk(to));
+        next.push({ t: n, blocks, filled });
+      } else if (ok(n, st.m, st)) next.push({ t: n, blocks: st.blocks, filled: st.filled });
     }
-    if (c.station) next.push(c.other);
-    if (c.jumpTo) next.push(c.jumpTo);
+    const jump = (t) => next.push({ t, blocks: st.blocks, filled: st.filled });
+    if (c.station) jump(c.other);
+    if (c.jumpTo) jump(c.jumpTo);
     if (c.obj === 'E') {
       const exit = [...tiles.values()].find((t) => t.obj === 'E' && t.side !== c.side);
-      if (exit) next.push(exit);
+      if (exit) jump(exit);
     }
     if (c.obj === 'O') {
       const portal = [...tiles.values()].find((t) => t.obj === 'O' && t.side !== c.side);
-      if (portal) next.push(portal);
+      if (portal) jump(portal);
     }
+    const broken = c.obj === FRAGILE ? new Set([...st.broken, tk(c)]) : st.broken;
     for (const n of next) {
-      const nm = mirrors && n.obj === 'R' ? !m : m;
-      const k = key(n, nm);
+      n.broken = n.t === c ? st.broken : broken;
+      const nm = mirrors && n.t.obj === 'R' ? !st.m : st.m;
+      const k = stateKey(n.t, nm, n);
       if (seenStates.has(k)) continue;
       seenStates.add(k);
-      seen.add(n);
-      q.push([n, nm]);
+      seen.add(n.t);
+      q.push({ ...n, m: nm });
     }
   }
   return seen;
+}
+
+// Le rayon peut-il atteindre un récepteur ? On essaie toutes les orientations
+// des miroirs ; ceux qu'il faut tourner doivent avoir une case voisine accessible.
+function beamSolvable(def, { tiles }, reach) {
+  const all = [...tiles.values()];
+  const mirrorsList = all.filter((t) => MIRRORS.has(t.obj));
+  const emitters = all.filter((t) => t.obj === EMITTER);
+  if (mirrorsList.length > 12) throw new Error('trop de miroirs');
+  const reachable = (t) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => reach.has(tiles.get(`${t.side}:${t.x + dx},${t.z + dz}`)));
+  for (let mask = 0; mask < 1 << mirrorsList.length; mask++) {
+    const orient = new Map(mirrorsList.map((m, i) => [m, mask & (1 << i) ? (m.obj === '/' ? '\\' : '/') : m.obj]));
+    if (mirrorsList.some((m, i) => mask & (1 << i) && !reachable(m))) continue;
+    for (const e of emitters) {
+      const b = (def.beams ?? []).find((b) => b.at[0] === e.x && b.at[1] === e.z && (b.side ?? 0) === e.side);
+      let [dx, dz] = FAN_DIRS[b?.dir] ?? [1, 0];
+      const y = beamHeight(e.h);
+      let x = e.x;
+      let z = e.z;
+      for (let i = 0; i < 40; i++) {
+        x += dx;
+        z += dz;
+        const t = tiles.get(`${e.side}:${x},${z}`);
+        if (!t || t.bridge || t.obj === GATE || t.obj === '+') continue;
+        if (tileTop(t.h) > y) break;
+        if (orient.has(t)) {
+          [dx, dz] = reflect(orient.get(t), [dx, dz]);
+          continue;
+        }
+        if (t.obj === RECEPTOR) return true;
+        if (t.blocked) break;
+      }
+    }
+  }
+  return false;
 }
 
 let ok = true;
@@ -127,6 +212,8 @@ for (const def of LEVELS) {
     if (altars.length && before.has(star)) issues.push('porte accessible sans la clé');
     if (button && !before.has(button)) issues.push('interrupteur inaccessible');
     if (button && before.has(star)) issues.push("étoile accessible sans l'interrupteur");
+    if (all.some((t) => t.obj === RECEPTOR) && !beamSolvable(def, world, before)) issues.push('rayon impossible à guider jusqu’au récepteur');
+    if (all.some((t) => t.obj === EMITTER) && !(def.beams ?? []).length) issues.push('émetteur sans direction (beams)');
     const after = reachable(world, start, { bridgesOn: true });
     if (!after.has(star)) issues.push('étoile inaccessible');
     if (mirror && reachable(world, start, { bridgesOn: true, mirrors: false }).has(star)) issues.push('étoile accessible sans passer de miroir');
