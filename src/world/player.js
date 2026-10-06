@@ -552,8 +552,14 @@ export class Player {
         this.tile = this.target;
         this.landedFromJump = this.jumping;
         this.land = this.jumping ? 1.4 : this.hop > 0.1 ? 1 : 0.35;
-        this.onStep?.(this.tile);
-        this.onArrive?.(this.tile);
+        // une erreur dans un rappel ne doit pas bloquer Lumi sur cette case
+        // (sinon onStep/onArrive se rejouent à chaque frame)
+        try {
+          this.onStep?.(this.tile);
+          this.onArrive?.(this.tile);
+        } catch (err) {
+          console.error(err);
+        }
         this.nextSegment();
       }
     }
