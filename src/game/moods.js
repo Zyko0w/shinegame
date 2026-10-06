@@ -19,6 +19,14 @@ export const MOOD_PALETTES = {
     hemi: [0x8a7dff, 0x120a24],
     rim: 0xff7ad9,
     vortex: [[1.0, 0.72, 0.5], [0.62, 0.25, 0.95], [0.1, 0.32, 0.55]],
+    // Habillage propre à l'émotion (voir world/biome.js)
+    biome: {
+      label: 'poussière d’étoiles',
+      liquid: [0x2a1f7a, 0x7ff5ff], glow: 0.9, flow: 0.25,
+      fall: [[0.5, 1.0, 0.95], [0.65, 0.5, 1.0]],
+      atmo: { kind: 'fireflies', color: 0xffd98a, count: 70, size: 3.2, vel: [0, 0.05, 0], sway: 0.35, twinkle: 2.2 },
+      features: ['blooms'],
+    },
   },
   sad: {
     label: 'La Tristesse',
@@ -36,6 +44,13 @@ export const MOOD_PALETTES = {
     hemi: [0x6f86d6, 0x0a0f24],
     rim: 0x6aa8ff,
     vortex: [[0.75, 0.85, 1.0], [0.25, 0.35, 0.9], [0.05, 0.15, 0.45]],
+    biome: {
+      label: 'larmes',
+      liquid: [0x10204a, 0x6aa8ff], glow: 0.35, flow: 0.12,
+      fall: [[0.55, 0.75, 1.0], [0.25, 0.35, 0.9]],
+      atmo: { kind: 'rain', color: 0x9cc4ff, count: 260, size: 1.6, vel: [0.05, -3.2, 0.02], sway: 0.02, twinkle: 0 },
+      features: ['puddles', 'willows'],
+    },
   },
   lonely: {
     label: 'La Solitude',
@@ -53,6 +68,13 @@ export const MOOD_PALETTES = {
     hemi: [0x7fc4d6, 0x081a20],
     rim: 0x9d86ff,
     vortex: [[0.8, 1.0, 0.95], [0.3, 0.6, 0.9], [0.05, 0.3, 0.4]],
+    biome: {
+      label: 'brume',
+      liquid: [0x0d3440, 0xbff6ff], glow: 0.45, flow: 0.06,
+      fall: [[0.8, 1.0, 1.0], [0.4, 0.6, 0.9]],
+      atmo: { kind: 'snow', color: 0xe8fbff, count: 160, size: 2.4, vel: [0.08, -0.35, 0.03], sway: 0.3, twinkle: 0.6 },
+      features: ['cairns', 'frost'],
+    },
   },
   fear: {
     label: 'La Peur',
@@ -70,6 +92,13 @@ export const MOOD_PALETTES = {
     hemi: [0x7a5ad0, 0x0a0518],
     rim: 0xb04aff,
     vortex: [[0.85, 0.6, 1.0], [0.45, 0.1, 0.75], [0.12, 0.04, 0.3]],
+    biome: {
+      label: 'ombre',
+      liquid: [0x05020f, 0x7a3cff], glow: 0.6, flow: 0.2,
+      fall: [[0.55, 0.3, 0.9], [0.15, 0.05, 0.35]],
+      atmo: { kind: 'spores', color: 0xb58cff, count: 90, size: 2.6, vel: [0, 0.12, 0], sway: 0.5, twinkle: 1.4 },
+      features: ['thorns', 'eyes'],
+    },
   },
   bitter: {
     label: 'La Rancœur',
@@ -87,6 +116,13 @@ export const MOOD_PALETTES = {
     hemi: [0xa8b46a, 0x14140a],
     rim: 0xd6b04a,
     vortex: [[1.0, 0.9, 0.55], [0.55, 0.6, 0.2], [0.15, 0.25, 0.1]],
+    biome: {
+      label: 'marécage',
+      liquid: [0x1a2008, 0x9cc43a], glow: 0.4, flow: 0.08,
+      fall: [[0.85, 0.9, 0.4], [0.35, 0.4, 0.1]],
+      atmo: { kind: 'leaves', color: 0xd6a04a, count: 70, size: 3.4, vel: [0.25, -0.4, 0.1], sway: 0.6, twinkle: 0 },
+      features: ['stumps', 'spikes'],
+    },
   },
   anger: {
     label: 'La Colère',
@@ -104,6 +140,37 @@ export const MOOD_PALETTES = {
     hemi: [0xd6705a, 0x1a0805],
     rim: 0xff3d2a,
     vortex: [[1.0, 0.75, 0.4], [0.95, 0.25, 0.1], [0.35, 0.05, 0.08]],
+    biome: {
+      label: 'lave',
+      liquid: [0x5a0800, 0xffb347], glow: 2.6, flow: 0.18,
+      fall: [[1.6, 0.75, 0.2], [0.9, 0.12, 0.02]],
+      atmo: { kind: 'embers', color: 0xff7a2a, count: 140, size: 2.6, vel: [0.04, 0.7, 0.02], sway: 0.25, twinkle: 3 },
+      features: ['cracks', 'basalt'],
+    },
+  },
+  envy: {
+    label: 'La Jalousie',
+    tagline: 'Le reflet de l’autre semble toujours plus brillant.',
+    accent: '#8af0b8',
+    top: [0.42, 0.22, 0.3], // jade pâle
+    patch: [0.55, 0.12, 0.42], // plaques argentées
+    side: [0.44, 0.2, 0.11],
+    grass: [0.38, 0.55, 0.4],
+    grassAlt: [0.5, 0.25, 0.65],
+    lip: [0.42, 0.32, 0.16],
+    flowers: [0.33, 0.48, 0.12],
+    leaves: [0x5fe0a0, 0xc8e8e0],
+    leafGlow: 0x0f3a2a,
+    hemi: [0x7ad6b0, 0x081a14],
+    rim: 0xb8fff0,
+    vortex: [[0.85, 1.0, 0.9], [0.25, 0.75, 0.55], [0.05, 0.25, 0.2]],
+    biome: {
+      label: 'vif-argent',
+      liquid: [0x1c2c30, 0xe8fff8], glow: 0.7, flow: 0.1,
+      fall: [[0.85, 1.0, 0.95], [0.35, 0.8, 0.6]],
+      atmo: { kind: 'glints', color: 0xd8fff0, count: 110, size: 2.8, vel: [0, 0.06, 0], sway: 0.2, twinkle: 4 },
+      features: ['shards'],
+    },
   },
 };
 

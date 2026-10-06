@@ -252,4 +252,43 @@ export class Sfx {
   start() {
     [64, 71, 76].forEach((n, i) => this.tone({ freq: midi(n), type: 'sine', dur: 1.6, vol: 0.06, when: i * 0.12, send: 0.9, attack: 0.03 }));
   }
+
+  // Traversée d'un miroir : glissando cristallin qui monte (ou descend en sortant du reflet)
+  mirror(entering = true) {
+    const notes = entering ? [72, 76, 79, 83, 88] : [88, 83, 79, 76, 72];
+    notes.forEach((n, i) => this.tone({ freq: midi(n), type: 'sine', dur: 0.9, vol: 0.05, when: i * 0.05, send: 0.9 }));
+    this.noise({ dur: 0.6, vol: 0.03, freq: 6000, q: 0.7, send: 0.9 });
+    this.tone({ freq: entering ? 220 : 330, type: 'triangle', dur: 0.7, vol: 0.05, glide: entering ? 1.5 : 0.66, send: 0.5 });
+  }
+
+  // Dalles de reflet / réelles qui apparaissent ou s'effacent
+  shimmer(i) {
+    this.tone({ freq: midi(84 + PENTA[i % PENTA.length]), type: 'sine', dur: 0.35, vol: 0.025, send: 0.9 });
+  }
+
+  bell() {
+    // cloche : partiels inharmoniques qui décroissent lentement
+    [1, 2.01, 2.76, 4.07, 5.4].forEach((r, i) => this.tone({ freq: 392 * r, type: 'sine', dur: 2.8 - i * 0.4, vol: 0.07 / (i + 1), send: 0.8 }));
+    this.tone({ freq: 196, type: 'sine', dur: 2.2, vol: 0.04, send: 0.6, when: 0.01 });
+  }
+
+  windmill() {
+    this.noise({ dur: 1.6, vol: 0.05, freq: 500, q: 0.5, send: 0.5 });
+    this.tone({ freq: 110, type: 'triangle', dur: 1.2, vol: 0.04, glide: 1.8, send: 0.3, attack: 0.2 });
+  }
+
+  fountain() {
+    this.noise({ dur: 1.4, vol: 0.05, freq: 2600, q: 0.4, send: 0.6 });
+    [79, 83, 86, 91].forEach((n, i) => this.tone({ freq: midi(n), type: 'sine', dur: 0.5, vol: 0.035, when: 0.2 + i * 0.09, send: 0.9 }));
+  }
+
+  door(open = true) {
+    this.tone({ freq: open ? 240 : 180, type: 'triangle', dur: 0.35, vol: 0.05, glide: open ? 1.4 : 0.7, send: 0.3 });
+    this.noise({ dur: 0.25, vol: 0.025, freq: 900, q: 1.5, send: 0.2 });
+  }
+
+  // Curiosité découverte pour la première fois
+  discover() {
+    [76, 81, 85, 88].forEach((n, i) => this.tone({ freq: midi(n), type: 'triangle', dur: 0.8, vol: 0.04, when: i * 0.07, send: 0.9 }));
+  }
 }

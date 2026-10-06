@@ -3,6 +3,8 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import * as P from './props.js';
 import { buildIslandDecor, createTree, createWaterfall, createPortal, createPlatform, createTrampoline } from './decor.js';
 import { Npc } from './npc.js';
+import { buildBiome, createAtmosphere } from './biome.js';
+import * as C from './curios.js';
 import { paletteOf } from '../game/moods.js';
 import { mulberry32, hashString } from '../core/random.js';
 import { ease } from '../core/tween.js';
@@ -14,6 +16,10 @@ import { patchTopBlock, patchSideBlock, patchUnderside, patchIridescent } from '
 //   et c'est alors elle qui devient le terrain de jeu.
 // - Les plateformes mobiles relient deux « stations » (cases vides de la
 //   grille) et transportent Lumi quand il s'arrête dessus.
+// - Monde-miroir : traverser un portique-miroir (R) fait passer Lumi « dans
+//   le reflet » (commandes inversées, gérées par main.js) ; les dalles-reflet
+//   (+) n'existent que dans le reflet, les dalles réelles (-) que hors de lui.
+// - Curiosités (H Y Q F N U) : décors interactifs facultatifs ; U = longue-vue.
 // Toute la logique (grille, chemins) porte sur la face active.
 
 export const STEP = 0.5; // hauteur d'un demi-bloc
@@ -24,6 +30,12 @@ const DIRS = [
   [0, 1],
   [0, -1],
 ];
+
+// Objets qui occupent leur case (on ne peut pas la traverser)
+const BLOCKING = new Set(['T', 'V', 'H', 'Y', 'Q', 'F', 'N', 'U', 'X', 'A']);
+const MERGEABLE = new Set(['K', 'R', 'H', 'Y', 'Q', 'F', 'N', 'U', 'X', 'A']);
+// Cases sans colonne de roche : dalles posées dans le vide
+const SLABS = new Set(['=', '+', '-', 'K']);
 
 const dummy = new THREE.Object3D();
 const tmpColor = new THREE.Color();
@@ -82,7 +94,18 @@ class Face {
         const ch = heights[z][x];
         if (!ch || ch === '.') continue;
         const obj = objects[z]?.[x] ?? '.';
-        this.addTile({ x, z, h: parseInt(ch, 10), obj, bridge: obj === '=', active: obj !== '=', blocked: obj === 'T' });
+        this.addTile({
+          x,
+          z,
+          h: parseInt(ch, 10),
+          obj,
+          bridge: SLABS.has(obj),
+          plank: obj === 'K',
+          reflect: obj === '+',
+          real: obj === '-',
+          active: obj !== '=' && obj !== '+',
+          blocked: BLOCKING.has(obj),
+        });
       }
     }
   }
@@ -133,7 +156,11 @@ export class Level {
     this.rnd = mulberry32(hashString(def.id));
     this.palette = paletteOf(def.mood); // couleurs du sol, de la végétation… selon l'émotion
     this.disposables = [];
-    this.animated = { gems: [], decor: [], rocks: [], ghosts: [], trees: [], portals: [], platforms: [], trampolines: [] };
+    this.animated = { gems: [], decor: [], rocks: [], ghosts: [], trees: [], portals: [], platforms: [], trampolines: [], mirrors: [], fires: [] };
+    this.kit = C.createKit(this.palette); // matériaux des curiosités et du monde-miroir
+    this.curios = [];
+    this.mirrorSlabs = [];
+    this.mirrored = false;
     this.npcs = [];
     this.animating = 0; // animations qui modifient les ombres (shadow map à recalculer)
     this.carry = new THREE.Vector3(); // déplacement de plateforme à appliquer à Lumi
@@ -168,6 +195,15 @@ export class Level {
 
     for (const f of this.faces) this.buildFace(f);
     this.buildFloatingRocks();
+    this.curioTotal = this.curios.length;
+    this.hasMirror = this.animated.mirrors.length > 0;
+
+    // particules d'ambiance de l'émotion (pluie, braises, neige…)
+    const atmo = createAtmosphere(this.palette, { radius: this.radius, maxTop: this.fitMaxTop }, this.rnd);
+    if (atmo) {
+      this.content.add(atmo);
+      this.disposables.push(atmo.geometry, atmo.material);
+    }
   }
 
   /* ───────────── Face active ───────────── */
@@ -312,6 +348,10 @@ export class Level {
     const decor = buildIslandDecor(face, rnd, { underside: !flipLevel, palette: this.palette });
     face.group.add(decor.group);
     this.disposables.push(...decor.disposables);
+    // habillage propre à l'émotion : bassins, lave, flaques, ronces…
+    const biome = buildBiome(face, rnd, this.palette);
+    face.group.add(biome.group);
+    this.disposables.push(...biome.disposables);
 
     // Maillage invisible de sélection (une colonne par case)
     face.pickMesh = new THREE.InstancedMesh(S.pickGeo, S.pickMat, face.list.length);
@@ -321,6 +361,10 @@ export class Level {
     this.disposables.push(face.pickMesh);
 
     for (const t of face.list) this.buildProp(t);
+    // parties fixes des curiosités, passerelles et miroirs : fusionnées par matériau
+    const statics = face.list.filter((t) => t.prop && MERGEABLE.has(t.obj)).flatMap((t) => [t.prop, ...(t.extraProps ?? [])]);
+    const merged = C.mergeStatic(face.group, statics);
+    this.disposables.push(...merged.map((m) => m.geometry));
     for (const p of this.platforms) if (p.face === face) this.buildPlatform(p);
     for (const j of this.jumps) if (j.face === face) this.buildJumpArc(j);
   }
@@ -383,7 +427,7 @@ export class Level {
         break;
       }
       case 'S': {
-        prop = P.createStar();
+        prop = P.createStar(this.palette.accent);
         prop.position.copy(pos);
         this.star = prop;
         break;
@@ -418,7 +462,7 @@ export class Level {
       case 'W': {
         // cascade sur le premier bord libre de la case
         const dir = DIRS.find(([dx, dz]) => !face.tileAt(t.x + dx, t.z + dz)) ?? DIRS[0];
-        prop = createWaterfall(6 + pos.y);
+        prop = createWaterfall(6 + pos.y, this.palette.biome?.fall);
         prop.position.set(pos.x + dir[0] * 0.53, pos.y - 0.02, pos.z + dir[1] * 0.53);
         prop.rotation.y = Math.atan2(dir[0], dir[1]);
         break;
@@ -431,6 +475,73 @@ export class Level {
         prop.position.set(pos.x + ox, pos.y, pos.z + oz);
         prop.rotation.y = rnd() * Math.PI * 2;
         this.animated.decor.push(prop);
+        break;
+      }
+      case 'X': {
+        prop = C.createCampfire(this.kit, rnd);
+        prop.position.copy(pos);
+        this.animated.fires.push(prop);
+        break;
+      }
+      case 'A': {
+        prop = C.createTent(this.kit);
+        prop.position.copy(pos);
+        const [dx, dz] = this.facing(t);
+        prop.rotation.y = Math.atan2(dx, dz);
+        break;
+      }
+      case 'K': {
+        prop = C.createPlank(this.kit, rnd, this.alongX(t));
+        prop.position.copy(pos);
+        break;
+      }
+      case '+':
+      case '-': {
+        const slab = C.createMirrorSlab(this.kit, this.shared.blockGeo, t.reflect ? 'reflect' : 'real');
+        slab.position.set(pos.x, pos.y - STEP / 2, pos.z);
+        slab.userData.block.visible = t.active;
+        t.slab = slab;
+        this.mirrorSlabs.push(t);
+        face.group.add(slab);
+        break;
+      }
+      case 'R': {
+        prop = C.createMirror(this.kit, this.alongX(t));
+        prop.position.copy(pos);
+        this.animated.mirrors.push(prop);
+        this.disposables.push(prop.userData.gem.material);
+        break;
+      }
+      case 'H':
+      case 'Y':
+      case 'Q':
+      case 'F':
+      case 'N':
+      case 'U': {
+        const k = this.kit;
+        prop =
+          t.obj === 'H'
+            ? C.createHouse(k, rnd)
+            : t.obj === 'Y'
+              ? C.createWindmill(k, rnd)
+              : t.obj === 'Q'
+                ? C.createBell(k)
+                : t.obj === 'F'
+                  ? C.createFountain(k)
+                  : t.obj === 'N'
+                    ? C.createSign(k)
+                    : C.createTelescope(k);
+        prop.position.copy(pos);
+        const [dx, dz] = this.facing(t);
+        prop.rotation.y = Math.atan2(dx, dz);
+        if (t.obj === 'U') this.buildObservatory(t, prop, pos, [dx, dz]);
+        const u = prop.userData;
+        if (u.glowMat) this.disposables.push(u.glowMat);
+        const def = (this.def.curios ?? []).find((c) => c.at[0] === t.x && c.at[1] === t.z && (c.side ?? 0) === face.index);
+        const curio = { type: t.obj, tile: t, prop, def, found: false, id: `${face.index}:${t.x},${t.z}` };
+        curio.name = def?.name ?? C.CURIO_INFO[t.obj].name;
+        t.curio = curio;
+        this.curios.push(curio);
         break;
       }
       case '=': {
@@ -514,6 +625,36 @@ export class Level {
     face.pickMesh.instanceMatrix.needsUpdate = true;
   }
 
+  // Longue-vue : tournée vers le vide (le bord le plus « extérieur » de
+  // l'île), posée sur un petit lieu d'observation
+  buildObservatory(t, prop, pos, seatDir) {
+    const face = t.layer;
+    const voids = DIRS.filter(([dx, dz]) => !face.tileAt(t.x + dx, t.z + dz));
+    const out = new THREE.Vector2(pos.x, pos.z);
+    const best = voids.length ? voids.reduce((a, b) => (out.dot(new THREE.Vector2(...b)) > out.dot(new THREE.Vector2(...a)) ? b : a)) : null;
+    if (best) prop.rotation.y = Math.atan2(best[0], best[1]);
+    else if (out.lengthSq() > 0.25) prop.rotation.y = Math.atan2(out.x, out.y);
+    const obs = C.createObservatory(this.kit, voids, null);
+    obs.position.copy(pos);
+    face.group.add(obs);
+    t.extraProps = [obs];
+  }
+
+  // Une passerelle / un miroir se traverse sur l'axe où il a le plus de voisins
+  alongX(t) {
+    const n = (dx, dz) => {
+      const o = t.layer.tileAt(t.x + dx, t.z + dz);
+      return o && !o.blocked ? 1 : 0;
+    };
+    return n(1, 0) + n(-1, 0) > n(0, 1) + n(0, -1);
+  }
+
+  // Direction d'une case voisine praticable (la façade d'une curiosité la regarde)
+  facing(t) {
+    const at = ([dx, dz]) => t.layer.tileAt(t.x + dx, t.z + dz);
+    return DIRS.find((d) => at(d) && !at(d).blocked && !at(d).bridge) ?? DIRS.find((d) => at(d) && !at(d).blocked) ?? DIRS[2];
+  }
+
   /* ───────────── Événements de gameplay ───────────── */
 
   // Tween suivi : tant qu'il tourne, la shadow map est recalculée
@@ -529,7 +670,10 @@ export class Level {
 
   // Objets cachés au départ, à inclure dans le préchauffage des shaders
   warmupTargets() {
-    return this.faces.flatMap((f) => f.list.filter((t) => t.slab).map((t) => t.slab));
+    return [
+      ...this.faces.flatMap((f) => f.list.filter((t) => t.slab).map((t) => t.slab)),
+      ...this.mirrorSlabs.map((t) => t.slab.userData.block),
+    ];
   }
 
   intro() {
@@ -565,7 +709,7 @@ export class Level {
     const origin = this.buttonTile ?? this.start;
     const bridges = this.faces
       .flatMap((f) => f.list)
-      .filter((t) => t.bridge && !t.active)
+      .filter((t) => t.obj === '=' && !t.active)
       .sort((a, b) => Math.hypot(a.x - origin.x, a.z - origin.z) - Math.hypot(b.x - origin.x, b.z - origin.z));
 
     bridges.forEach((t, i) => {
@@ -687,6 +831,87 @@ export class Level {
     return true;
   }
 
+  /* ───────────── Monde-miroir ───────────── */
+
+  // Passe dans le reflet (ou en ressort) : les dalles-reflet apparaissent, les
+  // dalles réelles s'effacent (et inversement), en vague depuis `origin`.
+  setMirrored(on, origin, onEach) {
+    this.mirrored = on;
+    const u = this.kit.mirror.uniforms;
+    u.uRipple.value = 1;
+    u.uMirrored.value = on ? 1 : 0;
+    const tiles = this.mirrorSlabs
+      .filter((t) => t.layer === this.face)
+      .sort((a, b) => Math.hypot(a.x - origin.x, a.z - origin.z) - Math.hypot(b.x - origin.x, b.z - origin.z));
+    let n = 0;
+    for (const t of tiles) {
+      const show = t.reflect ? on : !on;
+      if (t.active === show) continue;
+      const i = n++;
+      t.active = show;
+      this.updatePick(t);
+      const { block } = t.slab.userData;
+      this.track({
+        delay: 0.15 + i * 0.07,
+        duration: show ? 0.55 : 0.35,
+        ease: show ? ease.outBack : ease.inCubic,
+        onStart: () => {
+          block.visible = true;
+          onEach?.(t, i, show);
+        },
+        onUpdate: (k) => {
+          const v = show ? k : 1 - k;
+          block.scale.setScalar(Math.max(0.01, v));
+          block.rotation.y = (1 - v) * Math.PI * 0.5;
+        },
+        onComplete: () => {
+          block.visible = show;
+          block.scale.setScalar(1);
+          block.rotation.y = 0;
+        },
+      });
+    }
+  }
+
+  /* ───────────── Curiosités ───────────── */
+
+  // Personnage ou curiosité adjacents à une case
+  interactableNear(tile) {
+    const npc = this.npcNear(tile);
+    if (npc) return { npc };
+    if (!tile) return null;
+    for (const [dx, dz] of DIRS) {
+      const n = tile.layer.tileAt(tile.x + dx, tile.z + dz);
+      if (n?.curio) return { curio: n.curio };
+    }
+    return null;
+  }
+
+  // Porte de maison : s'ouvre (intérieur illuminé) ou se referme
+  setHouseOpen(curio, open) {
+    const u = curio.prop.userData;
+    const from = u.open;
+    this.track({
+      duration: open ? 0.7 : 0.5,
+      ease: open ? ease.outBack : ease.inOutSine,
+      onUpdate: (k) => {
+        u.open = from + ((open ? 1 : 0) - from) * k;
+        u.hinge.rotation.y = -u.open * 1.9;
+        u.glow = u.open;
+      },
+    });
+  }
+
+  // Animation de la curiosité utilisée (moulin, cloche, fontaine, panneau)
+  playCurio(curio) {
+    const u = curio.prop.userData;
+    if (curio.type === 'Y' || curio.type === 'F') u.boost = 1;
+    else if (curio.type === 'Q') {
+      u.swing = 1;
+      u.t = 0;
+    }
+  }
+
   collectGem(t) {
     if (t.collected || !t.prop) return null;
     t.collected = true;
@@ -781,6 +1006,66 @@ export class Level {
 
     for (const npc of this.npcs) npc.update(t, dt);
 
+    for (const f of this.animated.fires) {
+      const u = f.userData;
+      for (const fl of u.flames) {
+        const p = fl.userData;
+        const k = 1 + Math.sin(t * 11 + p.phase) * 0.12 + Math.sin(t * 23 + p.phase * 2) * 0.08;
+        fl.scale.set(p.r * (1.05 - (k - 1) * 0.5), p.h * k, p.r * (1.05 - (k - 1) * 0.5));
+        fl.rotation.y = t * 0.8 + p.phase;
+      }
+      u.halo.material.opacity = 0.38 + Math.sin(t * 9) * 0.06 + Math.sin(t * 17) * 0.04;
+    }
+
+    for (const c of this.curios) {
+      const u = c.prop.userData;
+      switch (c.type) {
+        case 'H': {
+          const g = 1 + u.glow * 1.5 + Math.sin(t * 2.3 + c.tile.x) * 0.06;
+          u.glowMat.color.setRGB(1.6 * g, 1.0 * g, 0.45 * g);
+          u.halo.material.opacity = 0.14 + u.glow * 0.35;
+          break;
+        }
+        case 'Y':
+          u.boost = Math.max(0, u.boost - dt * 0.22);
+          u.hub.rotation.z -= dt * (u.speed + u.boost * u.boost * 11);
+          break;
+        case 'Q':
+          if (u.swing > 0) {
+            u.t += dt;
+            const decay = Math.exp(-u.t * 0.8);
+            u.pivot.rotation.x = Math.sin(u.t * 7) * 0.55 * decay;
+            u.halo.material.opacity = 0.5 * decay;
+            if (decay < 0.01) u.swing = 0;
+          }
+          break;
+        case 'F':
+          u.boost = Math.max(0, u.boost - dt * 0.35);
+          u.jet.scale.y = 0.18 + Math.sin(t * 7) * 0.02 + u.boost * 0.95;
+          u.jet.scale.x = u.jet.scale.z = 1 + u.boost * 0.6;
+          u.halo.material.opacity = 0.22 + u.boost * 0.5;
+          break;
+        case 'U':
+          u.halo.material.opacity = 0.22 + Math.sin(t * 2 + c.tile.x) * 0.1;
+          break;
+      }
+    }
+
+    if (this.animated.mirrors.length) {
+      const mu = this.kit.mirror.uniforms;
+      mu.uRipple.value = Math.max(0, mu.uRipple.value - dt * 0.7);
+      for (const m of this.animated.mirrors) {
+        m.userData.gem.rotation.y = t * 1.5;
+        m.userData.gem.position.y = 1.0 + Math.sin(t * 2) * 0.03;
+      }
+    }
+    if (this.mirrorSlabs.length) {
+      // contours lumineux des dalles absentes
+      const pulse = 0.35 + Math.sin(t * 3) * 0.15;
+      this.kit.reflectLine.opacity = this.mirrored ? 0.1 : pulse;
+      this.kit.realLine.opacity = this.mirrored ? pulse : 0.1;
+    }
+
     for (const tr of this.animated.trampolines) {
       const u = tr.userData;
       if (!this.animating) u.pad.position.y = 0.19 + Math.sin(t * 3) * 0.006;
@@ -807,9 +1092,12 @@ export class Level {
     for (const d of this.disposables) d.dispose?.();
     for (const npc of this.npcs) npc.dispose();
     this.jumpDotMat?.dispose();
+    this.kit.dispose();
     if (this.star) {
       this.star.userData.beamMat.dispose();
       this.star.userData.mat.dispose();
+      this.star.userData.ringMat.dispose();
+      this.star.userData.coreMat.dispose();
     }
     for (const g of this.animated.gems) g.userData.mat.dispose();
     if (this.button) {

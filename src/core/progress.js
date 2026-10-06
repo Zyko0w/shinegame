@@ -25,8 +25,10 @@ class Progress {
     return index < this.data.unlocked;
   }
 
+  // Statistiques d'un niveau : meilleurs scores (pas, temps), cristaux,
+  // curiosités découvertes (ids cumulés d'une partie à l'autre), parties finies
   level(id) {
-    return this.data.levels[id] ?? { done: false, gems: 0, steps: null };
+    return { done: false, gems: 0, steps: null, time: null, curios: [], runs: 0, last: null, ...this.data.levels[id] };
   }
 
   setLast(index) {
@@ -34,15 +36,32 @@ class Progress {
     this.save();
   }
 
-  complete(index, id, gems, steps, total) {
+  // Enregistre une partie terminée ; renvoie les records battus
+  complete(index, id, { gems, steps, time, curios = [] }, total) {
     const prev = this.level(id);
+    const best = (a, b) => (a == null ? b : Math.min(a, b));
+    const record = {
+      steps: prev.steps != null && steps < prev.steps,
+      time: prev.time != null && time < prev.time,
+    };
     this.data.levels[id] = {
       done: true,
       gems: Math.max(prev.gems, gems),
-      steps: prev.steps == null ? steps : Math.min(prev.steps, steps),
+      steps: best(prev.steps, steps),
+      time: best(prev.time, time),
+      curios: [...new Set([...prev.curios, ...curios])],
+      runs: prev.runs + 1,
+      last: { gems, steps, time, curios: curios.length },
     };
     this.data.unlocked = Math.max(this.data.unlocked, Math.min(index + 2, total));
     this.data.last = Math.min(index + 1, total - 1);
+    this.save();
+    return record;
+  }
+
+  // Vœu fait sur l'île (gardé même si le niveau n'est pas terminé)
+  setWish(id, text) {
+    this.data.levels[id] = { ...this.level(id), wish: text };
     this.save();
   }
 

@@ -369,6 +369,28 @@ export class Player {
     this.presenceTarget = 1;
     this.onArrive = null;
     this.onStep = null;
+    // posture de cinématique : Lumi se penche vers un point (longue-vue,
+    // cloche, fontaine) — décalage du corps + inclinaison vers l'avant
+    this.leanOff = new THREE.Vector3();
+    this.leanTarget = new THREE.Vector3();
+    this.tilt = 0;
+    this.tiltTarget = 0;
+    this.springGoal = new THREE.Vector3();
+  }
+
+  // Penche Lumi vers `point` (monde) : `reach` = fraction de la distance,
+  // `lift` = hauteur ajoutée, `tilt` = inclinaison avant (rad)
+  lean(point, { reach = 0.4, lift = 0, tilt = 0.3, max = 0.55 } = {}) {
+    this.leanTarget.set(point.x - this.goal.x, 0, point.z - this.goal.z).multiplyScalar(reach);
+    if (this.leanTarget.length() > max) this.leanTarget.setLength(max);
+    this.leanTarget.y = lift;
+    this.tiltTarget = tilt;
+    this.targetYaw = Math.atan2(point.x - this.goal.x, point.z - this.goal.z);
+  }
+
+  unlean() {
+    this.leanTarget.set(0, 0, 0);
+    this.tiltTarget = 0;
   }
 
   place(level, tile) {
@@ -378,6 +400,9 @@ export class Player {
     this.moving = false;
     this.celebrateT = -1;
     this.locked = false;
+    this.leanOff.set(0, 0, 0);
+    this.leanTarget.set(0, 0, 0);
+    this.tilt = this.tiltTarget = 0;
     this.presence = this.presenceTarget = 1;
     level.worldOf(tile, this.goal);
     this.groundY = this.goal.y;
@@ -538,8 +563,11 @@ export class Player {
     const h = dt / steps;
     const k = 150;
     const c = 2 * Math.sqrt(k) * 0.72;
+    this.leanOff.lerp(this.leanTarget, 1 - Math.exp(-5 * dt));
+    this.tilt = damp(this.tilt, this.tiltTarget, 5, dt);
+    const goal = this.springGoal.copy(this.goal).add(this.leanOff);
     for (let i = 0; i < steps; i++) {
-      tmpV.subVectors(this.goal, this.pos).multiplyScalar(k).addScaledVector(this.vel, -c);
+      tmpV.subVectors(goal, this.pos).multiplyScalar(k).addScaledVector(this.vel, -c);
       this.vel.addScaledVector(tmpV, h);
       this.pos.addScaledVector(this.vel, h);
     }
@@ -549,7 +577,7 @@ export class Player {
 
     // 3) Orientation
     const speed = Math.hypot(this.vel.x, this.vel.z);
-    if (speed > 0.6 && this.celebrateT < 0) this.targetYaw = Math.atan2(this.vel.x, this.vel.z);
+    if (speed > 0.6 && this.celebrateT < 0 && !this.tiltTarget) this.targetYaw = Math.atan2(this.vel.x, this.vel.z);
     this.yaw += angleDelta(this.yaw, this.targetYaw) * (1 - Math.exp(-10 * dt));
     this.root.rotation.y = this.yaw;
     const cos = Math.cos(this.yaw);
@@ -572,7 +600,7 @@ export class Player {
     }
     if (this.talking) floatY += Math.abs(Math.sin(t * 9)) * 0.035;
     this.float.position.y = floatY - this.land * 0.05;
-    this.float.rotation.x = THREE.MathUtils.clamp(vFwd * 0.08, -0.35, 0.35);
+    this.float.rotation.x = THREE.MathUtils.clamp(vFwd * 0.08, -0.35, 0.35) + this.tilt;
     this.float.rotation.z = THREE.MathUtils.clamp(-vSide * 0.08, -0.35, 0.35);
     if (this.jumpK) spin += Math.sin(this.jumpK * Math.PI) * 0.4 + this.jumpK * Math.PI * 2; // vrille en vol
     this.float.rotation.y = spin;

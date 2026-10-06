@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { patchIridescent, patchStar, createHologramMaterial } from './materials.js';
+import { patchIridescent, createHologramMaterial } from './materials.js';
 
 // Fabriques d'objets de décor / gameplay. Géométries et matériaux
 // partagés au niveau module pour limiter les allocations GPU.
@@ -84,47 +84,51 @@ export function createGem() {
   return group;
 }
 
-/* ───────────── Étoile (objectif) ───────────── */
+/* ───────────── Gemme de l'émotion (objectif) ───────────── */
 
-function starShape(outer, inner, points = 5) {
-  const s = new THREE.Shape();
-  for (let i = 0; i < points * 2; i++) {
-    const r = i % 2 ? inner : outer;
-    const a = (i / (points * 2)) * Math.PI * 2 + Math.PI / 2;
-    const x = Math.cos(a) * r;
-    const y = Math.sin(a) * r;
-    if (i === 0) s.moveTo(x, y);
-    else s.lineTo(x, y);
-  }
-  s.closePath();
-  return s;
+// Taille « brillant » : couronne (table + facettes) et pavillon pointu,
+// 8 pans, facettes nettes (flatShading). Couleur = celle de l'émotion.
+function gemGeometry() {
+  const crown = new THREE.CylinderGeometry(0.17, 0.3, 0.14, 8, 1);
+  crown.translate(0, 0.07, 0);
+  const girdle = new THREE.CylinderGeometry(0.3, 0.3, 0.035, 8, 1);
+  girdle.translate(0, -0.0175, 0);
+  const pavilion = new THREE.ConeGeometry(0.3, 0.42, 8, 1);
+  pavilion.rotateX(Math.PI);
+  pavilion.translate(0, -0.035 - 0.21, 0);
+  const parts = [crown, girdle, pavilion].map((g) => g.toNonIndexed());
+  const pos = parts.flatMap((g) => [...g.attributes.position.array]);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.computeVertexNormals();
+  parts.forEach((g) => g.dispose());
+  [crown, girdle, pavilion].forEach((g) => g.dispose());
+  return geo;
 }
 
-export function createStar() {
+export function createStar(accent = COLORS.star) {
   const group = new THREE.Group();
+  const tint = new THREE.Color(accent);
 
-  const geo = new THREE.ExtrudeGeometry(starShape(0.34, 0.15), {
-    depth: 0.08,
-    bevelEnabled: true,
-    bevelThickness: 0.05,
-    bevelSize: 0.04,
-    bevelSegments: 3,
-  });
-  geo.center();
-  const mat = patchStar(new THREE.MeshStandardMaterial({
-    color: 0xffe2a0,
-    emissive: COLORS.star,
-    emissiveIntensity: 1.6,
-    metalness: 0.55,
-    roughness: 0.28,
-  }));
+  const geo = once('emotionGem', gemGeometry);
+  const mat = patchIridescent(new THREE.MeshStandardMaterial({
+    color: tint.clone().lerp(new THREE.Color(1, 1, 1), 0.35),
+    emissive: tint,
+    emissiveIntensity: 1.4,
+    metalness: 0.15,
+    roughness: 0.08,
+    flatShading: true,
+  }), 0.9);
   const star = new THREE.Mesh(geo, mat);
   star.castShadow = true;
+  star.scale.setScalar(1.15);
+  // cœur lumineux visible à travers les facettes
+  const core = new THREE.Mesh(once('emotionGemCore', () => new THREE.OctahedronGeometry(0.09, 0)), new THREE.MeshBasicMaterial({ color: tint.clone().multiplyScalar(3) }));
   const spin = new THREE.Group();
-  spin.add(star);
+  spin.add(star, core);
   spin.position.y = 0.62;
 
-  const halo = makeHalo(COLORS.star, 2.2, 0.55);
+  const halo = makeHalo(tint, 2.2, 0.55);
   halo.position.y = 0.62;
 
   // Faisceau de lumière vertical
@@ -135,7 +139,7 @@ export function createStar() {
     depthWrite: false,
     side: THREE.DoubleSide,
     blending: THREE.AdditiveBlending,
-    uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(COLORS.star) }, uStrength: { value: 1 } },
+    uniforms: { uTime: { value: 0 }, uColor: { value: tint.clone() }, uStrength: { value: 1 } },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
       void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
@@ -162,18 +166,18 @@ export function createStar() {
     g.rotateX(Math.PI / 2);
     return g;
   });
-  const ringMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(COLORS.star).multiplyScalar(2.2) });
+  const ringMat = new THREE.MeshBasicMaterial({ color: tint.clone().multiplyScalar(2.2) });
   const ring = new THREE.Mesh(ringGeo, ringMat);
   ring.position.y = 0.06;
   const ring2 = ring.clone();
   ring2.scale.setScalar(0.7);
   ring2.position.y = 0.1;
 
-  const light = new THREE.PointLight(COLORS.star, 5, 5, 1.6);
+  const light = new THREE.PointLight(tint, 5, 5, 1.6);
   light.position.y = 0.9;
 
   group.add(spin, halo, beam, ring, ring2, light);
-  group.userData = { spin, halo, beamMat, ring, ring2, light, mat };
+  group.userData = { spin, halo, beamMat, ring, ring2, light, mat, ringMat, coreMat: core.material };
   return group;
 }
 

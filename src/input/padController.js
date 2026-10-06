@@ -88,6 +88,7 @@ export class PadController {
         if (settingsPanel.isOpen) actions.closeSettings();
         else if (box.id === 'levels' || box.id === 'credits') ui.closeTopModal();
         else if (box.id === 'pause') actions.resume();
+        else if (box.id === 'wish') document.getElementById('wish-cancel').click();
       } else if ((b === BTN.LB || b === BTN.RB) && settingsPanel.isOpen) {
         settingsPanel.cycleTab(b === BTN.LB ? -1 : 1);
       } else if (b === BTN.START && box.id === 'pause') {

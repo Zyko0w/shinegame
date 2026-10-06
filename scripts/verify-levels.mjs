@@ -1,30 +1,46 @@
 // Vérifie que chaque niveau est faisable, en simulant ses mécaniques :
-// interrupteur → ponts, plateformes (deux stations), portails (deux faces).
-// L'étoile ne doit pas être accessible sans l'interrupteur s'il y en a un.
+// interrupteur → ponts, plateformes (deux stations), portails (deux faces),
+// monde-miroir (R bascule l'état ; + n'existe que dans le reflet, - hors du reflet).
+// L'étoile ne doit pas être accessible sans l'interrupteur / sans miroir
+// s'il y en a un. Chaque curiosité doit avoir une case voisine accessible.
 import { LEVELS } from '../src/game/levels.js';
 
-function parseFace(heights, objects, side) {
+const BLOCKING = new Set(['T', 'V', 'H', 'Y', 'Q', 'F', 'N', 'U', 'X', 'A']);
+const CURIOS = new Set(['H', 'Y', 'Q', 'F', 'N', 'U']);
+const DIRS = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+];
+
+function parseFace(def, heights, objects, side, issues) {
   const tiles = new Map();
-  heights.forEach((row, z) =>
+  heights.forEach((row, z) => {
+    if (objects[z] != null && objects[z].length > row.length && objects[z].slice(row.length).trim().replace(/\./g, '')) issues.push(`objet hors de l'île, rangée ${z}`);
     [...row].forEach((ch, x) => {
       if (ch === '.') return;
       const obj = objects[z]?.[x] ?? '.';
-      tiles.set(`${side}:${x},${z}`, { side, x, z, h: +ch, obj, bridge: obj === '=', blocked: obj === 'T' });
-    }),
-  );
+      tiles.set(`${side}:${x},${z}`, { side, x, z, h: +ch, obj, bridge: obj === '=', blocked: BLOCKING.has(obj) });
+    });
+    objects[z] &&
+      [...objects[z]].forEach((o, x) => {
+        if (o !== '.' && (row[x] ?? '.') === '.') issues.push(`objet « ${o} » sur une case vide (${side}:${x},${z})`);
+      });
+  });
   return tiles;
 }
 
-function build(def) {
-  const tiles = parseFace(def.heights, def.objects, 0);
-  if (def.under) for (const [k, v] of parseFace(def.under.heights, def.under.objects, 1)) tiles.set(k, v);
+function build(def, issues) {
+  const tiles = parseFace(def, def.heights, def.objects, 0, issues);
+  if (def.under) for (const [k, v] of parseFace(def, def.under.heights, def.under.objects, 1, issues)) tiles.set(k, v);
   const platforms = (def.platforms ?? []).map((p) => {
     const s = p.side ?? 0;
     const a = { side: s, x: p.from[0], z: p.from[1], h: p.h, obj: '.', station: true };
     const b = { side: s, x: p.to[0], z: p.to[1], h: p.h, obj: '.', station: true };
     for (const t of [a, b]) {
       const k = `${s}:${t.x},${t.z}`;
-      if (tiles.has(k)) throw new Error(`${def.id} : station de plateforme sur une case pleine (${k})`);
+      if (tiles.has(k)) throw new Error(`station de plateforme sur une case pleine (${k})`);
       tiles.set(k, t);
     }
     a.other = b;
@@ -35,30 +51,36 @@ function build(def) {
     const s0 = j.side ?? 0;
     const a = tiles.get(`${s0}:${j.from[0]},${j.from[1]}`);
     const b = tiles.get(`${s0}:${j.to[0]},${j.to[1]}`);
-    if (!a || !b) throw new Error(`${def.id} : tremplin sur une case vide`);
+    if (!a || !b) throw new Error(`tremplin sur une case vide`);
     a.jumpTo = b;
   }
   for (const n of def.npcs ?? []) {
     const t = tiles.get(`${n.side ?? 0}:${n.at[0]},${n.at[1]}`);
-    if (!t) throw new Error(`${def.id} : personnage ${n.id} sur une case vide`);
+    if (!t) throw new Error(`personnage ${n.id} sur une case vide`);
     t.blocked = true;
     t.npc = n.id;
+  }
+  for (const c of def.curios ?? []) {
+    const t = tiles.get(`${c.side ?? 0}:${c.at[0]},${c.at[1]}`);
+    if (!t || !CURIOS.has(t.obj)) issues.push(`texte de curiosité sans curiosité en (${c.at})`);
   }
   return { tiles, platforms };
 }
 
-// Exploration : on considère les plateformes comme des liaisons a↔b
-// (Lumi peut toujours faire venir la plateforme à lui en marchant dessus)
-function reachable({ tiles }, start, bridgesOn) {
+// Exploration des états (case, dans le reflet ?). Les plateformes sont des
+// liaisons a↔b (Lumi peut toujours faire venir la plateforme à lui).
+function reachable({ tiles }, start, { bridgesOn, mirrors = true }) {
+  const key = (t, m) => `${t.side}:${t.x},${t.z}:${m ? 1 : 0}`;
+  const ok = (t, m) => t && !t.blocked && (!t.bridge || bridgesOn) && !(t.obj === '+' && !m) && !(t.obj === '-' && m);
+  const seenStates = new Set([key(start, false)]);
   const seen = new Set([start]);
-  const q = [start];
-  const ok = (t) => t && !t.blocked && (!t.bridge || bridgesOn);
+  const q = [[start, false]];
   while (q.length) {
-    const c = q.shift();
+    const [c, m] = q.shift();
     const next = [];
-    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    for (const [dx, dz] of DIRS) {
       const n = tiles.get(`${c.side}:${c.x + dx},${c.z + dz}`);
-      if (ok(n) && Math.abs(n.h - c.h) <= 1) next.push(n);
+      if (ok(n, m) && Math.abs(n.h - c.h) <= 1) next.push(n);
     }
     if (c.station) next.push(c.other);
     if (c.jumpTo) next.push(c.jumpTo);
@@ -67,10 +89,12 @@ function reachable({ tiles }, start, bridgesOn) {
       if (portal) next.push(portal);
     }
     for (const n of next) {
-      if (!seen.has(n)) {
-        seen.add(n);
-        q.push(n);
-      }
+      const nm = mirrors && n.obj === 'R' ? !m : m;
+      const k = key(n, nm);
+      if (seenStates.has(k)) continue;
+      seenStates.add(k);
+      seen.add(n);
+      q.push([n, nm]);
     }
   }
   return seen;
@@ -80,28 +104,33 @@ let ok = true;
 for (const def of LEVELS) {
   const issues = [];
   try {
-    const world = build(def);
+    const world = build(def, issues);
     const all = [...world.tiles.values()];
     const start = all.find((t) => t.obj === 'P');
     const star = all.find((t) => t.obj === 'S');
     const button = all.find((t) => t.obj === 'B');
+    const mirror = all.some((t) => t.obj === 'R');
     if (def.under && all.filter((t) => t.obj === 'O').length !== 2) issues.push('il faut un portail O sur chaque face');
-    const before = reachable(world, start, false);
+    const before = reachable(world, start, { bridgesOn: false });
     if (button && !before.has(button)) issues.push('interrupteur inaccessible');
     if (button && before.has(star)) issues.push("étoile accessible sans l'interrupteur");
-    const after = reachable(world, start, true);
+    const after = reachable(world, start, { bridgesOn: true });
     if (!after.has(star)) issues.push('étoile inaccessible');
+    if (mirror && reachable(world, start, { bridgesOn: true, mirrors: false }).has(star)) issues.push('étoile accessible sans passer de miroir');
     all.filter((t) => t.obj === 'G' && !after.has(t)).forEach((g) => issues.push(`cristal (${g.side}:${g.x},${g.z}) inaccessible`));
     all.filter((t) => t.station && !after.has(t)).forEach((s) => issues.push(`station (${s.x},${s.z}) inaccessible`));
-    // chaque personnage doit avoir au moins une case voisine accessible pour lui parler
-    all.filter((t) => t.npc).forEach((n) => {
-      const near = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => after.has(world.tiles.get(`${n.side}:${n.x + dx},${n.z + dz}`)));
-      if (!near) issues.push(`personnage ${n.npc} injoignable`);
-    });
+    // personnages et curiosités : au moins une case voisine accessible
+    const near = (n) => DIRS.some(([dx, dz]) => after.has(world.tiles.get(`${n.side}:${n.x + dx},${n.z + dz}`)));
+    all.filter((t) => t.npc && !near(t)).forEach((n) => issues.push(`personnage ${n.npc} injoignable`));
+    all.filter((t) => CURIOS.has(t.obj) && !near(t)).forEach((c) => issues.push(`curiosité ${c.obj} (${c.x},${c.z}) injoignable`));
+    const curios = all.filter((t) => CURIOS.has(t.obj)).length;
+    if (!issues.length) console.log(`✓ ${def.name} — ${all.length} cases, ${all.filter((t) => t.obj === 'G').length} cristaux, ${curios} curiosités`);
   } catch (e) {
     issues.push(e.message);
   }
-  console.log(`${issues.length ? '✗' : '✓'} ${def.name}${issues.length ? ' — ' + issues.join(', ') : ''}`);
-  if (issues.length) ok = false;
+  if (issues.length) {
+    console.log(`✗ ${def.name} — ${issues.join(', ')}`);
+    ok = false;
+  }
 }
 process.exit(ok ? 0 : 1);

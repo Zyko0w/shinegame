@@ -23,6 +23,7 @@ export const MOODS = {
   lonely: { root: 47, scale: 'dorian', prog: [0, 3, 0, 4], bar: 7.5, wave: 'triangle', cutoff: 800, density: 0.2, bell: 0.9, bass: 0.4, texture: 'wind' },
   fear: { root: 44, scale: 'phrygian', prog: [0, 1, 0, 6], bar: 7, wave: 'sawtooth', cutoff: 420, density: 0.3, bell: 0.6, bass: 0.7, texture: 'tremolo' },
   bitter: { root: 46, scale: 'dorian', prog: [0, 6, 3, 4], bar: 6, wave: 'square', cutoff: 520, density: 0.35, bell: 0.7, bass: 0.65, texture: 'wind' },
+  envy: { root: 48, scale: 'dorian', prog: [0, 2, 5, 4], bar: 6.5, wave: 'triangle', cutoff: 950, density: 0.4, bell: 1.1, bass: 0.5, texture: 'shimmer' },
   anger: { root: 43, scale: 'phrygian', prog: [0, 1, 5, 1], bar: 4.5, wave: 'sawtooth', cutoff: 700, density: 0.6, bell: 0.5, bass: 0.9, texture: 'pulse' },
 };
 

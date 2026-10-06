@@ -16,6 +16,8 @@ const ICONS = {
   platform: '<rect x="4" y="10" width="16" height="5" rx="1.5"/><path d="M7 18v2M17 18v2M2 7h4M18 7h4M6 7l-2-2M18 7l2-2"/>',
   portal: '<ellipse cx="12" cy="12" rx="6" ry="9"/><path d="M12 7a5 5 0 0 1 0 10"/><path d="M3 12h3M18 12h3"/>',
   trampoline: '<path d="M4 18h16M6 18l2-5h8l2 5"/><path d="M12 13V4M9 7l3-3 3 3"/>',
+  mirror: '<path d="M12 3v18"/><path d="M8 8l-4 4 4 4M16 8l4 4-4 4"/>',
+  curio: '<path d="M4 11l8-6 8 6v9H4z"/><path d="M10 20v-5h4v5"/>',
 };
 
 // Contenu des fiches (les touches affichées suivent les réglages du joueur)
@@ -33,8 +35,8 @@ function card(id) {
       };
     case 'gem':
       return {
-        title: 'Cristaux d’étoile',
-        html: `Les cristaux sont <strong>facultatifs</strong> : l'étoile suffit pour finir le niveau. Ramasse-les tous pour le terminer à 100 %.`,
+        title: 'Cristaux et gemmes',
+        html: `Les cristaux sont <strong>facultatifs</strong> : seule la <strong>gemme de l'émotion</strong>, au bout de l'île, est nécessaire pour finir le niveau. Ramasse les cristaux pour le terminer à 100 %.`,
       };
     case 'button':
       return {
@@ -50,6 +52,16 @@ function card(id) {
       return {
         title: 'Portail de retournement',
         html: `Le portail fait <strong>pivoter l'île de 180°</strong> : tu continues sur sa face cachée, avec ses propres chemins. Un autre portail te ramène de l'autre côté.`,
+      };
+    case 'mirror':
+      return {
+        title: 'Portique-miroir',
+        html: `Traverser un miroir te fait passer <strong>dans le reflet</strong> : tes <strong>commandes sont inversées</strong> (gauche ↔ droite, avant ↔ arrière, et un clic t'envoie à l'opposé de la case visée).<br>Dans le reflet, les <strong>dalles argentées</strong> apparaissent et les <strong>dalles dorées</strong> s'effacent. Retraverse un miroir pour revenir.`,
+      };
+    case 'curio':
+      return {
+        title: 'Curiosités',
+        html: `Maisons, moulins, cloches, fontaines, panneaux… Approche-toi et appuie sur ${k('interact')} (ou clique dessus). Elles sont <strong>facultatives</strong>, mais chaque découverte compte dans tes statistiques du niveau.`,
       };
     case 'trampoline':
       return {

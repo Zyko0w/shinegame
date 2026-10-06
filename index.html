@@ -31,8 +31,9 @@
             </svg>
           </h1>
           <p class="tagline">
-            Guide <strong>Lumi</strong> à travers les îles flottantes du vide
-            et rallume les étoiles perdues, une case à la fois.
+            Quelqu’un dort et ne se réveille plus, perdu dans sa propre tête.
+            Guide <strong>Lumi</strong>, sa dernière petite flamme, à travers chacun
+            de ses sentiments pour en rapporter la gemme.
           </p>
           <nav class="main-menu" aria-label="Menu principal">
             <ul id="main-menu">
@@ -80,13 +81,44 @@
             <span class="hud-sub" id="hud-sub">—</span>
           </span>
         </div>
-        <div class="chip hud-gems" id="hud-gems" aria-label="Cristaux collectés">
-          <!-- slots injectés -->
+        <div class="hud-right">
+          <div class="chip hud-gems" id="hud-gems" aria-label="Cristaux collectés">
+            <!-- slots injectés -->
+          </div>
+          <div class="chip hud-curios" id="hud-curios" title="Curiosités découvertes (facultatives)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.2 5.6L20 9.3l-4.4 3.9 1.3 5.8L12 16l-4.9 3 1.3-5.8L4 9.3l5.8-.7z" /></svg>
+            <span class="curios-n" id="curios-n">0/0</span>
+          </div>
         </div>
       </header>
 
+      <div id="mirror-veil" class="mirror-veil" aria-hidden="true"></div>
+      <!-- Longue-vue : masque de jumelles + titre de l'objet observé -->
+      <div id="scope" class="scope" aria-hidden="true">
+        <svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <filter id="scope-soft"><feGaussianBlur stdDeviation="1.2" /></filter>
+            <mask id="scope-mask">
+              <rect width="160" height="100" fill="#fff" />
+              <g filter="url(#scope-soft)" fill="#000"><circle cx="63" cy="50" r="31" /><circle cx="97" cy="50" r="31" /></g>
+            </mask>
+          </defs>
+          <rect width="160" height="100" fill="#03020a" mask="url(#scope-mask)" />
+        </svg>
+        <p class="scope-label"><span class="dot"></span><span class="scope-title">—</span></p>
+      </div>
+      <div id="mirror-badge" class="mirror-badge" role="status" aria-live="polite">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18" /><path d="M8 8l-4 4 4 4M16 8l4 4-4 4" /></svg>
+        <span>Dans le reflet · <strong>commandes inversées</strong></span>
+      </div>
+
       <nav id="dock" class="dock" aria-hidden="true">
-        <div class="chip steps"><span class="steps-n" id="steps">0</span><span class="steps-l">pas</span></div>
+        <div class="chip steps">
+          <span class="steps-n" id="steps">0</span><span class="steps-l">pas</span>
+          <span class="steps-sep" aria-hidden="true"></span>
+          <svg class="timer-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2.5M10 2h4" /></svg>
+          <span class="steps-n timer-n" id="timer" aria-label="Temps écoulé">0:00</span>
+        </div>
 
         <div class="chip dock-cam" role="group" aria-label="Caméra">
           <button class="icon-btn" id="btn-rot-left" type="button" aria-label="Tourner à gauche (A)" title="Tourner à gauche — A">
@@ -140,7 +172,24 @@
         </div>
       </section>
 
-      <div id="talk-prompt" class="talk-prompt" aria-hidden="true"><kbd id="talk-key">Espace</kbd><span>Parler à <strong id="talk-name"></strong></span></div>
+      <!-- Vœu : choix d'un vœu proposé ou saisie libre -->
+      <section id="wish" class="wish" role="dialog" aria-modal="true" aria-labelledby="wish-title" aria-hidden="true">
+        <form class="wish-card" id="wish-form">
+          <p class="eyebrow gold"><span class="dot"></span>faire un vœu</p>
+          <h2 class="wish-title" id="wish-title">—</h2>
+          <div class="wish-options" id="wish-options"></div>
+          <label class="wish-own" for="wish-input">
+            <span>…ou écris le tien</span>
+            <input id="wish-input" type="text" maxlength="70" autocomplete="off" placeholder="Je souhaite…" />
+          </label>
+          <div class="wish-actions">
+            <button class="btn btn-ghost btn-small" id="wish-cancel" type="button"><span>Plus tard</span></button>
+            <button class="btn btn-primary btn-small" id="wish-ok" type="submit"><span>Lancer le vœu</span></button>
+          </div>
+        </form>
+      </section>
+
+      <div id="talk-prompt" class="talk-prompt" aria-hidden="true"><kbd id="talk-key">Espace</kbd><span><span id="talk-verb">Parler à</span> <strong id="talk-name"></strong></span></div>
 
       <div id="banner" class="banner" aria-hidden="true">
         <span class="banner-chapter" id="banner-index">Prologue</span>
@@ -167,14 +216,17 @@
       <!-- ───────────── Fin de niveau ───────────── -->
       <section id="complete" class="screen modal" role="dialog" aria-modal="true" aria-labelledby="complete-title">
         <div class="card card-complete">
-          <p class="eyebrow gold"><span class="dot"></span>étoile rallumée</p>
+          <p class="eyebrow gold"><span class="dot"></span>gemme récupérée</p>
           <h2 id="complete-title" class="card-title">—</h2>
           <blockquote class="outro" id="outro"><p id="outro-text"></p><cite id="outro-who"></cite></blockquote>
           <div class="result-gems" id="result-gems"></div>
           <div class="stats">
             <div><span class="stat-n" id="stat-gems">0/3</span><span class="stat-l">cristaux</span></div>
-            <div><span class="stat-n" id="stat-steps">0</span><span class="stat-l">pas</span></div>
+            <div><span class="stat-n" id="stat-steps">0</span><span class="stat-l">pas</span><span class="stat-rec" id="rec-steps">record !</span></div>
+            <div><span class="stat-n" id="stat-time">0:00</span><span class="stat-l">temps</span><span class="stat-rec" id="rec-time">record !</span></div>
+            <div><span class="stat-n" id="stat-curios">0/0</span><span class="stat-l">curiosités</span></div>
           </div>
+          <p class="stats-best" id="stats-best"></p>
           <div class="card-actions row">
             <button class="btn btn-ghost" id="btn-replay" type="button"><span>Rejouer</span></button>
             <button class="btn btn-primary" id="btn-next" type="button">
@@ -191,7 +243,7 @@
         <div class="starmap-sky" aria-hidden="true"></div>
         <header class="starmap-head">
           <div>
-            <p class="eyebrow"><span class="dot"></span>carte des constellations</p>
+            <p class="eyebrow"><span class="dot"></span>carte de l’esprit</p>
             <h2 id="levels-title" class="starmap-title">L’Archipel des Émotions</h2>
           </div>
           <button class="icon-btn icon-btn-lg" id="btn-levels-close" type="button" aria-label="Fermer la carte">
@@ -208,6 +260,7 @@
           <p class="si-name" id="si-name">—</p>
           <p class="si-tagline" id="si-tagline">—</p>
           <div class="si-meta" id="si-meta"></div>
+          <dl class="si-stats" id="si-stats"></dl>
           <button class="btn btn-primary btn-small" id="si-play" type="button"><span>Rejoindre l’île</span></button>
         </aside>
       </section>
@@ -273,7 +326,7 @@
               <span class="switch"><input type="checkbox" id="set-ao" /><span class="switch-ui" aria-hidden="true"></span></span>
             </label>
             <label class="set-row" for="set-godrays">
-              <span class="set-text"><span class="set-label">Rayons lumineux</span><span class="set-hint">Faisceaux volumétriques de l'étoile</span></span>
+              <span class="set-text"><span class="set-label">Rayons lumineux</span><span class="set-hint">Faisceaux volumétriques de la gemme</span></span>
               <span class="switch"><input type="checkbox" id="set-godrays" /><span class="switch-ui" aria-hidden="true"></span></span>
             </label>
             <label class="set-row" for="set-tilt">
@@ -317,7 +370,7 @@
               <div class="bindings" id="bindings"></div>
               <p class="set-group">Manette <span class="set-group-hint" id="pad-status">aucune manette détectée — appuie sur un bouton</span></p>
               <label class="set-row" for="set-pad-vibration">
-                <span class="set-text"><span class="set-label">Vibrations</span><span class="set-hint">Retour haptique sur les cristaux, l'interrupteur, l'étoile</span></span>
+                <span class="set-text"><span class="set-label">Vibrations</span><span class="set-hint">Retour haptique sur les cristaux, l'interrupteur, la gemme</span></span>
                 <span class="switch"><input type="checkbox" id="set-pad-vibration" /><span class="switch-ui" aria-hidden="true"></span></span>
               </label>
               <label class="set-row set-row-slider" for="set-pad-sens">

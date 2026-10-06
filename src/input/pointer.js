@@ -15,6 +15,7 @@ export class PointerInput {
    * @param {(tile, path) => void} o.onHover
    * @param {() => void} o.onHoverEnd
    * @param {(tile, path) => void} o.onSelect
+   * @param {(tile) => any} [o.remap]       case réellement visée (monde-miroir) ; null = impossible
    */
   constructor(o) {
     this.o = o;
@@ -51,10 +52,17 @@ export class PointerInput {
   refresh(force = true) {
     const s = this.state;
     if (!this.o.enabled() || s.dragging || !s.inside) return this.endHover();
-    const tile = this.pick(s.x, s.y);
-    if (tile === this.hoverTile && !force) return;
-    const changed = tile !== this.hoverTile;
-    this.hoverTile = tile;
+    const raw = this.pick(s.x, s.y);
+    if (raw === this.hoverTile && !force) return;
+    const changed = raw !== this.hoverTile;
+    this.hoverTile = raw;
+    const tile = this.target(raw);
+    if (tile === null) {
+      // reflet : la case opposée n'existe pas
+      this.o.canvas.style.cursor = 'not-allowed';
+      this.o.onHover(raw, null, changed);
+      return;
+    }
     if (!tile || !tile.active) {
       this.o.canvas.style.cursor = '';
       this.o.onHoverEnd();
@@ -63,6 +71,12 @@ export class PointerInput {
     const path = this.o.pathTo(tile);
     this.o.canvas.style.cursor = path ? 'pointer' : 'not-allowed';
     this.o.onHover(tile, path, changed);
+  }
+
+  // Case visée après inversion éventuelle (monde-miroir) ; null = aucune
+  target(raw) {
+    if (!raw || !this.o.remap) return raw;
+    return this.o.remap(raw);
   }
 
   down(e) {
@@ -102,8 +116,10 @@ export class PointerInput {
     s.x = e.clientX;
     s.y = e.clientY;
     s.inside = true;
-    const tile = this.pick(e.clientX, e.clientY);
-    if (tile?.active) this.o.onSelect(tile, this.o.pathTo(tile));
+    const raw = this.pick(e.clientX, e.clientY);
+    const tile = this.target(raw);
+    if (tile === null) this.o.onSelect(raw, null);
+    else if (tile?.active) this.o.onSelect(tile, this.o.pathTo(tile));
     if (e.pointerType !== 'mouse') {
       s.inside = false;
       this.endHover();

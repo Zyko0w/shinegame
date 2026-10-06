@@ -104,7 +104,7 @@ export function buildIslandDecor(layer, rnd, { underside, palette }) {
   const grass = [];
   const flowers = [];
   for (const t of ground) {
-    if (t.obj === 'T') continue;
+    if (t.obj === 'T' || t.obj === 'V') continue;
     const busy = t.obj !== '.' && t.obj !== 'P';
     const n = busy ? 2 : 3 + ((rnd() * 4) | 0);
     for (let i = 0; i < n; i++) {
@@ -313,7 +313,8 @@ export function createTree(rnd, palette) {
 }
 
 // Cascade de poussière d'étoiles qui tombe du bord dans le vide
-export function createWaterfall(height = 7) {
+// `fall` : [couleur en haut, couleur en bas] (RVB linéaire), selon l'émotion
+export function createWaterfall(height = 7, fall = [[0.5, 1.0, 0.95], [0.65, 0.5, 1.0]]) {
   const g = new THREE.Group();
   const geo = new THREE.PlaneGeometry(0.62, height, 1, 1).translate(0, -height / 2, 0);
   const mat = new THREE.ShaderMaterial({
@@ -321,13 +322,15 @@ export function createWaterfall(height = 7) {
     depthWrite: false,
     side: THREE.DoubleSide,
     blending: THREE.AdditiveBlending,
-    uniforms: { uTime: globalUniforms.uTime },
+    uniforms: { uTime: globalUniforms.uTime, uTop: { value: new THREE.Vector3(...fall[0]) }, uBottom: { value: new THREE.Vector3(...fall[1]) } },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
       void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
     `,
     fragmentShader: /* glsl */ `
       uniform float uTime;
+      uniform vec3 uTop;
+      uniform vec3 uBottom;
       varying vec2 vUv;
       float h(float x) { return fract(sin(x * 91.7) * 43758.5); }
       void main() {
@@ -339,14 +342,14 @@ export function createWaterfall(height = 7) {
         float streak = smoothstep(0.55, 1.0, sin((y * 9.0 - uTime * speed * 6.0) + h(col) * 20.0));
         float fall = (1.0 - smoothstep(0.15, 1.0, y)) ;
         float a = edge * fall * (0.18 + streak * 0.55);
-        vec3 c = mix(vec3(0.5, 1.0, 0.95), vec3(0.65, 0.5, 1.0), y);
+        vec3 c = mix(uTop, uBottom, y);
         gl_FragColor = vec4(c * a * 1.4, a);
       }
     `,
   });
   const sheet = new THREE.Mesh(geo, mat);
   sheet.renderOrder = 3;
-  const foam = makeHalo(0x9ffff0, 0.8, 0.5);
+  const foam = makeHalo(new THREE.Color(...fall[0]).multiplyScalar(0.8), 0.8, 0.5);
   foam.position.y = 0.02;
   g.add(sheet, foam);
   g.userData = { mat };

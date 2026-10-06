@@ -1,8 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // L'ARCHIPEL DES ÉMOTIONS
-// Les étoiles de l'Archipel se sont éteintes une à une, chacune noyée dans
-// une émotion que personne n'a su apaiser. Lumi, petit feu follet cosmonaute,
-// part les rallumer. Sur chaque île l'attend l'esprit de cette émotion.
+// Quelqu'un dort et ne se réveille plus : enfermé·e dans sa propre tête,
+// perdu·e entre ses sentiments. Lumi est sa dernière petite flamme, la part
+// d'elle qui veut encore ouvrir les yeux. Chaque île est une émotion, gardée
+// par son esprit ; au bout de chaque île brille la Gemme de cette émotion.
+// Une fois toutes les gemmes réunies, on les pose dans la Porte du Réveil
+// (dernier niveau, à venir) — et la personne se réveille.
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // Format des niveaux
@@ -10,15 +13,25 @@
 //   '.' = vide · '0'..'9' = hauteur de la colonne (demi-blocs). Lumi ne saute
 //   pas tout seul : il ne franchit qu'une marche (écart de 1).
 // objects : même grille.
-//   P = départ   S = étoile (fin)   G = cristal   B = interrupteur
+//   P = départ   S = gemme de l'émotion (fin)   G = cristal (facultatif)   B = interrupteur
 //   = = dalle de pont (apparaît avec l'interrupteur)
 //   O = portail de retournement   T = arbre (bloque la case)
 //   M = champignons  L = lanterne  C = cristaux  W = cascade (décor)
+//   V = bassin du « liquide » de l'émotion (lave, larmes…), infranchissable
+//   K = passerelle en bois (case praticable sans colonne de roche)
+//   R = portique-miroir : le traverser fait entrer dans le reflet (ou en sortir)
+//   + = dalle-reflet (n'existe que dans le reflet)  - = dalle réelle (s'efface dans le reflet)
+//   Curiosités (facultatives, on interagit depuis une case voisine) :
+//   H = maison visitable  Y = moulin  Q = cloche  F = fontaine  N = panneau
+//   X = feu de camp  A = tente (décor des plateformes d'observation, bloquent la case)
+//   U = longue-vue (point panoramique : `view` = constellation / planète observée)
 // under     : face cachée { heights, objects } (vue une fois l'île retournée).
 // platforms : [{ side, from: [x, z], to: [x, z], h }] plateforme mobile.
 // jumps     : [{ side, from: [x, z], to: [x, z] }] tremplin (case de départ → arrivée).
 // npcs      : [{ id, at: [x, z], side, name, emotion, voice, lines, repeat }]
 //   lines : [{ who, text }] — `who` = id du personnage ou 'lumi'.
+// curios    : [{ at: [x, z], side, name, text | lines, voice, view, title }] textes des curiosités
+//   (`lines` = mini-dialogue comme pour les esprits, `who: 'souvenir'` = voix off).
 // mood      : émotion du chapitre (couleur du ciel, musique, esprit).
 // outro     : citation affichée et dite à la fin du niveau.
 
@@ -41,6 +54,12 @@ export const LEVELS = [
       '1122...2222',
       '0012...2222',
       '00.....2222',
+      '.0......2..',
+      '0001...2222',
+      '0000...222.',
+      '..0........',
+      '000........',
+      '000........',
     ],
     objects: [
       'B.MT...L.S.',
@@ -51,6 +70,37 @@ export const LEVELS = [
       'WM.....M..T',
       '.........LW',
       'G......C..G',
+      '.K......K..',
+      'Y..N.......',
+      '.H.G.....L.',
+      '..K........',
+      'X..........',
+      'U.A........',
+    ],
+    curios: [
+      {
+        at: [0, 13],
+        name: 'la longue-vue',
+        view: 'orion',
+        title: 'Constellation d’Orion',
+        voice: 'Carnet d’enfance',
+        lines: [
+          { who: 'souvenir', text: 'La constellation d’Orion, le chasseur. Les trois étoiles alignées au centre forment sa ceinture : Alnitak, Alnilam et Mintaka.' },
+          { who: 'souvenir', text: 'En haut à gauche brille Bételgeuse, une géante rouge en fin de vie. En bas à droite, Rigel : jeune, bleue et brûlante.' },
+          { who: 'lumi', text: 'Une étoile qui s’achève et une qui commence… dans la même constellation.' },
+        ],
+      },
+      {
+        at: [1, 10],
+        name: 'la maison d’Orion',
+        lines: [
+          { who: 'lumi', text: 'Des cartes du ciel partout… même au plafond !' },
+          { who: 'orion', text: 'Ne touche pas à la théière, petite flamme ! Elle a vu naître trois comètes.' },
+          { who: 'lumi', text: 'Promis. Je regarde juste les étoiles dessinées.' },
+        ],
+      },
+      { at: [0, 9], name: 'le vieux moulin', text: 'Les ailes brassent la poussière d’étoiles. Le moulin moud la lumière pour en faire des lucioles.' },
+      { at: [3, 9], name: 'le panneau', text: '« Jardin d’Orion — ici, on apprend à regarder en l’air. »' },
     ],
     npcs: [
       {
@@ -60,16 +110,16 @@ export const LEVELS = [
         at: [1, 4],
         voice: { pitch: 0.65, rate: 0.88, voiceIndex: 0 },
         lines: [
-          { who: 'orion', text: 'Oh ! Une petite flamme… avec un casque ? Bienvenue dans l’Archipel, voyageur.' },
-          { who: 'orion', text: 'Je suis Orion. Autrefois, chaque île brillait sous sa propre étoile.' },
-          { who: 'orion', text: 'Mais elles se sont éteintes, une à une. Chacune s’est noyée dans une émotion que personne n’a su apaiser.' },
-          { who: 'lumi', text: 'Et si je les rallumais ?' },
-          { who: 'orion', text: 'Ta flamme est jeune, mais elle tient bon. Commence ici : l’interrupteur, là-haut, fera naître un pont de lumière.' },
+          { who: 'orion', text: "Oh ! Une petite flamme… Tu es réveillée, toi ? Enfin quelqu’un." },
+          { who: 'orion', text: "Je suis Orion, l’Émerveillement. Ici, tu es dans une tête : la sienne… la nôtre." },
+          { who: 'orion', text: "Elle dort depuis si longtemps. Elle s’est perdue entre ses propres sentiments, et chacun garde jalousement sa gemme." },
+          { who: 'lumi', text: "Alors je vais les chercher. Toutes. Et on la réveillera." },
+          { who: 'orion', text: "Rapporte-les à la Porte du Réveil, au bout de l’Archipel. Commence par la mienne : l’interrupteur, là-haut, fera naître un pont." },
         ],
-        repeat: [{ who: 'orion', text: 'Le pont attend ton pas, petite flamme. L’étoile est de l’autre côté.' }],
+        repeat: [{ who: 'orion', text: "Le pont attend ton pas, petite flamme. Ma gemme brille de l’autre côté." }],
       },
     ],
-    outro: { who: 'orion', text: 'Une étoile rallumée… Va. D’autres îles t’attendent, et leurs gardiens aussi.' },
+    outro: { who: 'orion', text: "Une première gemme… Je la sens remuer, quelque part. Continue : chaque sentiment garde la sienne." },
     hints: {
       start: 'Clique sur une case pour guider Lumi. Approche-toi d’Orion pour lui parler.',
       button: 'Un pont de lumière se forme…',
@@ -82,18 +132,30 @@ export const LEVELS = [
     subtitle: "L'escalier qui flotte",
     mood: 'sad',
     heights: [
-      '4567...',
-      '3..8...',
-      '2..9..2',
-      '1..90.1',
-      '0000000',
+      '4567......',
+      '3..8......',
+      '2..9..2.22',
+      '1..90.1111',
+      '0000000.00',
     ],
     objects: [
-      '.G.....',
-      'M..=...',
-      'W..=..G',
-      '...S..L',
-      'G..P..B',
+      '.G........',
+      'M..=......',
+      'W..=..G.HV',
+      '...S..LK.Q',
+      'G..P..B.G.',
+    ],
+    curios: [
+      {
+        at: [8, 2],
+        name: 'la maison de Mira',
+        lines: [
+          { who: 'lumi', text: 'Tout est rangé… sauf une pile de mouchoirs brodés d’étoiles.' },
+          { who: 'lumi', text: 'Sur le mur, un dessin d’enfant : deux silhouettes main dans la main. L’une est presque effacée.' },
+          { who: 'lumi', text: 'On ne pleure que ce qu’on a aimé. Je comprends mieux, maintenant.' },
+        ],
+      },
+      { at: [9, 3], name: 'la cloche des larmes', text: 'La cloche sonne sous la pluie. Chaque goutte lui répond par un petit écho.' },
     ],
     npcs: [
       {
@@ -103,16 +165,16 @@ export const LEVELS = [
         at: [4, 3],
         voice: { pitch: 1.25, rate: 0.86, voiceIndex: 1 },
         lines: [
-          { who: 'mira', text: 'Ne fais pas attention à moi… Je pleure tout le temps, maintenant.' },
-          { who: 'mira', text: 'Mon étoile a glissé du haut de la tour. Je n’ai pas su la retenir.' },
-          { who: 'mira', text: 'Chaque larme a éteint une marche de l’escalier. Il n’en reste presque plus.' },
-          { who: 'lumi', text: 'On peut peut-être les faire revenir ?' },
-          { who: 'mira', text: 'On raconte qu’un interrupteur, en bas, se souvient de toutes les marches… Moi, je n’ai plus la force d’y aller.' },
+          { who: 'mira', text: "Ne fais pas attention à moi… Je pleure tout le temps, maintenant." },
+          { who: 'mira', text: "Je suis sa Tristesse. Tout ce qu’elle n’a jamais dit, c’est ici que ça coule." },
+          { who: 'mira', text: "Ma gemme est tout en haut de la tour. Chaque larme a effacé une marche de l’escalier." },
+          { who: 'lumi', text: "On peut peut-être les faire revenir ?" },
+          { who: 'mira', text: "On raconte qu’un interrupteur, en bas, se souvient de toutes les marches… Moi, je n’ai plus la force d’y aller." },
         ],
-        repeat: [{ who: 'mira', text: 'Les marches reviendront… si quelqu’un y croit à ma place.' }],
+        repeat: [{ who: 'mira', text: "Les marches reviendront… si quelqu’un y croit à ma place." }],
       },
     ],
-    outro: { who: 'mira', text: 'Elle brille encore… La tristesse ne s’efface pas, mais elle peut laisser passer la lumière.' },
+    outro: { who: 'mira', text: "Tu l’as prise… La tristesse ne s’efface pas, tu sais. Mais elle peut laisser passer la lumière." },
     hints: {
       start: 'Les marches manquent tout là-haut. Il doit bien y avoir un interrupteur…',
       button: "L'escalier se complète dans le ciel.",
@@ -131,14 +193,38 @@ export const LEVELS = [
       '2.......3.',
       '1.......4.',
       '00......56',
+      '0.........',
+      '0000......',
+      '.00.......',
     ],
     objects: [
       'T......C.T',
       '.G......GW',
-      '..M......L',
+      '..M......F',
       '..........',
       '..........',
       'PG.......S',
+      'K.........',
+      '...H......',
+      '.NG.......',
+    ],
+    curios: [
+      {
+        at: [3, 7],
+        name: 'la cabane du passeur',
+        lines: [
+          { who: 'lumi', text: 'Deux tasses sur la table. Une seule a servi.' },
+          { who: 'lyre', text: 'L’autre, c’est pour le prochain voyageur. Je la lave tous les matins, au cas où.' },
+          { who: 'lumi', text: 'Alors je reviendrai boire dedans. C’est promis.' },
+        ],
+      },
+      { at: [1, 8], name: 'le panneau', text: '« Embarcadère. Prochain départ : quand quelqu’un viendra. »' },
+      {
+        at: [9, 2],
+        name: 'le puits aux vœux',
+        wishes: ['Que Lyre ne soit plus jamais seul', 'Que les îles se rapprochent', 'Revoir un ami perdu de vue'],
+        text: 'Le vœu tombe au fond du puits… et remonte en lumière, droit vers l’autre île.',
+      },
     ],
     platforms: [{ side: 0, from: [3, 1], to: [6, 1], h: 3 }],
     npcs: [
@@ -149,16 +235,16 @@ export const LEVELS = [
         at: [2, 0],
         voice: { pitch: 0.9, rate: 0.92, voiceIndex: 2 },
         lines: [
-          { who: 'lyre', text: 'Ah… un visiteur. Ça faisait si longtemps que je ne parlais qu’aux étoiles.' },
-          { who: 'lyre', text: 'Je fais traverser le bac d’une île à l’autre. Mais plus personne ne vient.' },
-          { who: 'lyre', text: 'Les îles se sont éloignées, tu sais. Comme les gens, quand on cesse de se rendre visite.' },
-          { who: 'lumi', text: 'Alors je traverse… et je reviendrai te voir.' },
-          { who: 'lyre', text: 'Arrête-toi sur la dalle dorée. Elle connaît le chemin.' },
+          { who: 'lyre', text: "Ah… un visiteur. Ici, plus personne ne vient." },
+          { who: 'lyre', text: "Je suis sa Solitude. Je la tiens à l’écart des autres, pour qu’on ne lui fasse plus de mal." },
+          { who: 'lyre', text: "Les îles se sont éloignées, tu vois. Comme les gens, quand on cesse de leur rendre visite." },
+          { who: 'lumi', text: "Alors je traverse… et je reviendrai te voir." },
+          { who: 'lyre', text: "Arrête-toi sur la dalle dorée. Ma gemme t’attend sur l’autre île." },
         ],
-        repeat: [{ who: 'lyre', text: 'La dalle dorée t’attend. Elle n’aime pas rester seule, elle non plus.' }],
+        repeat: [{ who: 'lyre', text: "La dalle dorée t’attend. Elle n’aime pas rester seule, elle non plus." }],
       },
     ],
-    outro: { who: 'lyre', text: 'Tu es allé jusqu’au bout… La solitude se dissout dès qu’un pont existe, même tout petit.' },
+    outro: { who: 'lyre', text: "Tu es allé jusqu’au bout… Peut-être qu’elle peut encore laisser quelqu’un s’approcher." },
     hints: {
       start: 'Arrête-toi sur la plateforme dorée : elle te portera de l’autre côté.',
       platform: 'En route vers l’autre île…',
@@ -171,18 +257,33 @@ export const LEVELS = [
     subtitle: "L'île à deux visages",
     mood: 'fear',
     heights: [
-      '..333.',
-      '..2.3.',
-      '012.33',
-      '00...3',
-      '0000.3',
+      '..333.......',
+      '..2.3..33.33',
+      '012.33333333',
+      '00...3.33.33',
+      '0000.3...',
     ],
     objects: [
-      '....M.',
-      '....G.',
-      'C.....',
-      '......',
-      'P..G.O',
+      '....M.......',
+      '....G...G.X.',
+      'C.....K..K.U',
+      '.......QV..A',
+      'P..G.O...',
+    ],
+    curios: [
+{
+        at: [11, 2],
+        name: 'la longue-vue',
+        view: 'andromede',
+        title: 'Galaxie d’Andromède',
+        voice: 'Carnet d’enfance',
+        lines: [
+          { who: 'souvenir', text: 'La galaxie d’Andromède : mille milliards d’étoiles. C’est l’objet le plus lointain visible à l’œil nu, à 2,5 millions d’années-lumière.' },
+          { who: 'souvenir', text: 'La lumière que tu vois est partie bien avant les premiers humains. Dans quatre milliards d’années, elle rencontrera notre Voie lactée.' },
+          { who: 'lumi', text: 'Même ce qui est très loin finit par se rapprocher. Pas de quoi avoir peur.' },
+        ],
+      },
+      { at: [7, 3], name: 'la cloche d’alarme', text: 'La cloche résonne… et rien de terrible n’arrive. Le silence d’après est presque doux.' },
     ],
     under: {
       heights: [
@@ -208,18 +309,18 @@ export const LEVELS = [
         at: [1, 3],
         voice: { pitch: 1.45, rate: 1.12, voiceIndex: 1 },
         lines: [
-          { who: 'andra', text: 'Ch… chut ! Pas si fort… Elle pourrait nous entendre.' },
-          { who: 'andra', text: 'Qui ça ? L’autre côté de l’île. Celui qu’on ne regarde jamais.' },
-          { who: 'andra', text: 'Mon étoile est tombée là-dessous. Je n’ose pas passer le portail.' },
-          { who: 'lumi', text: 'J’y vais pour toi. Ce n’est peut-être pas si terrible, de l’autre côté.' },
-          { who: 'andra', text: 'Tu… tu ferais ça ? Le portail retourne l’île tout entière. Tiens bien ton casque.' },
+          { who: 'andra', text: "Ch… chut ! Pas si fort… Tout ce qu’elle a enfoui pourrait remonter." },
+          { who: 'andra', text: "Je suis sa Peur. Je garde le dessous de l’île, là où elle range ce qu’elle ne veut pas regarder." },
+          { who: 'andra', text: "Ma gemme est tombée là-dessous. Je n’ose pas passer le portail." },
+          { who: 'lumi', text: "J’y vais pour toi. Ce n’est peut-être pas si terrible, de l’autre côté." },
+          { who: 'andra', text: "Tu… tu ferais ça ? Le portail retourne l’île tout entière. Tiens bien ton casque." },
         ],
-        repeat: [{ who: 'andra', text: 'Le portail, c’est là-bas… Moi je reste ici, d’accord ?' }],
+        repeat: [{ who: 'andra', text: "Le portail, c’est là-bas… Moi je reste ici, d’accord ?" }],
       },
     ],
-    outro: { who: 'andra', text: 'Alors le dessous n’était qu’un autre jardin ? J’avais surtout peur de ce que je ne connaissais pas.' },
+    outro: { who: 'andra', text: "Alors le dessous n’était qu’un autre jardin ? Elle avait surtout peur de ce qu’elle ne connaissait pas." },
     hints: {
-      start: 'Ce portail fait basculer l’île… et si l’étoile se cachait dessous ?',
+      start: 'Ce portail fait basculer l’île… et si la gemme se cachait dessous ?',
       flip: 'Tu marches sous l’île ! Le portail te ramène de l’autre côté.',
     },
   },
@@ -233,15 +334,30 @@ export const LEVELS = [
       '.....33.....',
       '.....33.....',
       '111..33..444',
-      '011......454',
-      '001......456',
+      '011..3...454',
+      '001..33..456',
+      '.....33.....',
     ],
     objects: [
       '.....T......',
       '......G.....',
       '...........G',
-      '.P..........',
-      'G..........S',
+      '.P...K......',
+      'G.....H....S',
+      '.....GY.....',
+    ],
+    curios: [
+      {
+        at: [6, 4],
+        name: 'l’atelier de Bétel',
+        lines: [
+          { who: 'lumi', text: 'Des plans de tremplins partout… et des lettres jamais envoyées.' },
+          { who: 'souvenir', text: '« Chère Antarès, tu me manques. » Rayé. Recommencé. Rayé encore.' },
+          { who: 'lumi', text: 'Bétel n’est pas fâché. Il a juste peur que personne ne réponde.' },
+        ],
+        voice: 'Brouillon de lettre',
+      },
+      { at: [6, 5], name: 'le moulin grinçant', text: 'Le moulin grince, hésite… puis repart. Il avait juste besoin qu’on le pousse un peu.' },
     ],
     jumps: [
       { side: 0, from: [2, 2], to: [5, 2] },
@@ -255,16 +371,16 @@ export const LEVELS = [
         at: [2, 4],
         voice: { pitch: 0.75, rate: 0.95, voiceIndex: 0 },
         lines: [
-          { who: 'betel', text: 'Encore un qui vient rallumer des étoiles… Pfff. Personne n’est venu pour la mienne.' },
-          { who: 'betel', text: 'Les autres îles sont parties sans un mot. Alors moi aussi, je les ignore.' },
-          { who: 'betel', text: 'Ces vieux tremplins ? Je les avais construits pour les rejoindre. Je ne m’en sers plus.' },
-          { who: 'lumi', text: 'Ils marchent encore ? Je pourrais te rapporter des nouvelles des autres îles.' },
-          { who: 'betel', text: '… Fais comme tu veux. Arrête-toi sur un tremplin et accroche-toi. Mais ne compte pas sur moi pour te dire merci.' },
+          { who: 'betel', text: "Encore un qui veut réveiller tout le monde… Pfff. Personne n’est venu, quand elle en avait besoin." },
+          { who: 'betel', text: "Je suis sa Rancœur. Je tiens les comptes : chaque oubli, chaque promesse pas tenue." },
+          { who: 'betel', text: "Ces vieux tremplins ? Je les avais construits pour rejoindre les autres. Je ne m’en sers plus." },
+          { who: 'lumi', text: "Ils marchent encore ? Ta gemme est au bout, non ?" },
+          { who: 'betel', text: "… Fais comme tu veux. Arrête-toi sur un tremplin et accroche-toi. Mais ne compte pas sur moi pour te dire merci." },
         ],
-        repeat: [{ who: 'betel', text: 'Les tremplins t’envoient d’île en île. Moi, je reste là, à ruminer.' }],
+        repeat: [{ who: 'betel', text: "Les tremplins t’envoient d’île en île. Moi, je reste là, à ruminer." }],
       },
     ],
-    outro: { who: 'betel', text: 'Tu as sauté jusqu’au bout… Peut-être que ma rancune m’a éloigné bien plus que les îles elles-mêmes.' },
+    outro: { who: 'betel', text: "Tu as sauté jusqu’au bout… Peut-être que c’est moi qui l’ai éloignée des autres, bien plus qu’eux." },
     hints: {
       start: 'Arrête-toi sur un tremplin pour être projeté vers l’île voisine.',
     },
@@ -280,16 +396,35 @@ export const LEVELS = [
       '2332...33.66',
       '233222233...',
       '2222...33...',
-      '1...........',
-      '0...........',
+      '1000........',
+      '00000.......',
+      '.0000.......',
     ],
     objects: [
       '...B......GS',
-      '..G.........',
+      '.VG.........',
       '....===.....',
       '........G...',
-      '............',
-      'P...........',
+      '..VH........',
+      'P.K.........',
+      '.GVWF.......',
+    ],
+    curios: [
+      {
+        at: [3, 4],
+        name: 'la forge d’Antar',
+        lines: [
+          { who: 'lumi', text: 'Des marteaux, des enclumes… et un petit cœur de métal, tout cabossé.' },
+          { who: 'antar', text: 'Je l’ai frappé trop fort ! C’était censé être un cadeau…' },
+          { who: 'lumi', text: 'Il bat encore, tu sais. Un peu de travers, mais il bat.' },
+        ],
+      },
+      {
+        at: [4, 6],
+        name: 'la fontaine de lave',
+        wishes: ['Que la colère d’Antar s’apaise', 'Avoir le courage de pardonner', 'Une forge qui crée au lieu de détruire'],
+        text: 'La lave avale ton vœu, bouillonne… puis se calme, comme une longue respiration.',
+      },
     ],
     jumps: [{ side: 0, from: [8, 1], to: [10, 1] }],
     npcs: [
@@ -300,19 +435,99 @@ export const LEVELS = [
         at: [0, 0],
         voice: { pitch: 0.6, rate: 1.18, voiceIndex: 2 },
         lines: [
-          { who: 'antar', text: 'QUOI ?! Encore quelqu’un sur MON île ?!' },
-          { who: 'antar', text: 'Mon étoile a explosé de colère, et je n’arrive plus à me calmer ! Tout brûle, ici !' },
-          { who: 'antar', text: 'Le pont ? Je l’ai cassé ! L’interrupteur ? Je ne veux plus le voir !' },
-          { who: 'lumi', text: 'Tu veux bien que j’essaie ? Respire un peu, pendant ce temps.' },
-          { who: 'antar', text: '… Respirer. Bon. D’accord. Le tremplin, sur l’îlot, mène à l’étoile. Dépêche-toi avant que je change d’avis !' },
+          { who: 'antar', text: "QUOI ?! Encore quelqu’un dans MA tête… enfin, dans SA tête !" },
+          { who: 'antar', text: "Je suis sa Colère ! Tout ce qu’elle a avalé sans rien dire, ça brûle ici !" },
+          { who: 'antar', text: "Le pont ? Je l’ai cassé ! L’interrupteur ? Je ne veux plus le voir !" },
+          { who: 'lumi', text: "Tu veux bien que j’essaie ? Respire un peu, pendant ce temps." },
+          { who: 'antar', text: "… Respirer. Bon. D’accord. Le tremplin, sur l’îlot, mène à ma gemme. Dépêche-toi avant que je change d’avis !" },
         ],
-        repeat: [{ who: 'antar', text: 'Je respire… je respire… Vas-y, avant que ça recommence !' }],
+        repeat: [{ who: 'antar', text: "Je respire… je respire… Vas-y, avant que ça recommence !" }],
       },
     ],
-    outro: { who: 'antar', text: 'C’est fou… Quand la flamme se calme, elle éclaire au lieu de brûler. Merci, petite flamme.' },
+    outro: { who: 'antar', text: "C’est fou… Quand la flamme se calme, elle éclaire au lieu de brûler. Garde ma gemme, petite flamme." },
     hints: {
       start: 'Le pont est brisé. Trouve l’interrupteur, puis le tremplin.',
       button: 'Le pont se reforge…',
+    },
+  },
+  {
+    id: 'alcor',
+    name: "Galerie d'Alcor",
+    chapter: 'Chapitre VI · La Jalousie',
+    subtitle: 'Le reflet trompeur',
+    mood: 'envy',
+    heights: [
+      '........6..',
+      '........5..',
+      '........4..',
+      '........3..',
+      '0111....2...22',
+      '01111112222222',
+      '001....222..22',
+      '.0......2..',
+      '000.....222',
+      '........22.',
+    ],
+    objects: [
+      '........S..',
+      '........-..',
+      '........-..',
+      '........-..',
+      'N..T....R...X.',
+      'P..R+++G...K.U',
+      '..G....C.M..A.',
+      '.-......+..',
+      'Q.C.......H',
+      '........GV.',
+    ],
+    npcs: [
+      {
+        id: 'alcor',
+        name: 'Alcor',
+        emotion: 'envy',
+        at: [0, 6],
+        voice: { pitch: 1.1, rate: 1.0, voiceIndex: 2 },
+        lines: [
+          { who: 'alcor', text: "Tu as vu Mizar ? Ma jumelle. Tout le monde la regarde, elle. Moi, je suis « l’autre »." },
+          { who: 'alcor', text: "Je suis sa Jalousie. Je lui montre la vie des autres dans des miroirs. Toujours plus belle que la sienne." },
+          { who: 'alcor', text: "De l’autre côté du miroir, tout s’inverse : la gauche devient la droite, et des chemins d’argent apparaissent." },
+          { who: 'lumi', text: "Et le chemin qui mène à ta gemme ?" },
+          { who: 'alcor', text: "Lui n’existe que du bon côté du miroir. Il faudra passer de l’un à l’autre… sans te perdre en route." },
+        ],
+        repeat: [{ who: 'alcor', text: "Dans le reflet, tout s’inverse. Même tes pas." }],
+      },
+    ],
+    curios: [
+{
+        at: [13, 5],
+        name: 'la longue-vue',
+        view: 'ourse',
+        title: 'Grande Ourse',
+        voice: 'Carnet d’enfance',
+        lines: [
+          { who: 'souvenir', text: 'La Grande Ourse, qu’on appelle aussi la Grande Casserole. Dans son manche brillent Mizar et sa petite voisine, Alcor.' },
+          { who: 'souvenir', text: 'Autrefois, distinguer Alcor à côté de Mizar servait de test de vue. Les deux étoiles voyagent ensemble dans l’espace.' },
+          { who: 'lumi', text: 'On ne voit vraiment l’une que si l’on regarde aussi l’autre.' },
+        ],
+      },
+      { at: [0, 4], name: 'le panneau', text: '« Galerie d’Alcor. Prière de ne pas comparer les reflets. »' },
+      { at: [0, 8], name: 'le carillon jumeau', text: 'Deux cloches sonnent ensemble. Pour une fois, aucune n’essaie de couvrir l’autre.' },
+      {
+        at: [10, 8],
+        name: 'la maison de Mizar',
+        voice: 'Mot de Mizar',
+        lines: [
+          { who: 'lumi', text: 'Une maison pleine de miroirs… tous recouverts de draps.' },
+          { who: 'souvenir', text: '« Alcor, je n’ai jamais voulu briller plus fort que toi. Je voulais juste briller à côté de toi. »' },
+          { who: 'lumi', text: 'Je crois qu’Alcor devrait lire ça.' },
+        ],
+      },
+    ],
+    outro: { who: 'alcor', text: "Elle n’avait pas besoin de briller comme les autres. Juste de briller comme elle." },
+    hints: {
+      start: 'Traverse le portique-miroir : dans le reflet, des dalles d’argent apparaissent… mais tes commandes s’inversent.',
+      mirror: 'Dans le reflet ! Gauche et droite, avant et arrière sont inversés.',
+      unmirror: 'Retour du bon côté du miroir : les dalles dorées sont revenues.',
     },
   },
 ];

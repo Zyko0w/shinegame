@@ -15,6 +15,13 @@ const LOCK_SVG = '<svg class="level-lock" viewBox="0 0 24 24" aria-hidden="true"
 const $ = (id) => document.getElementById(id);
 const pad = (n) => String(n).padStart(2, '0');
 
+// 83.4 → « 1:23 »
+export function fmtTime(sec) {
+  if (sec == null) return '—';
+  const s = Math.floor(sec);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
 // Positions des îles sur la carte (en %), en forme de constellation sinueuse
 function constellation(n) {
   const portrait = window.innerWidth < 760;
@@ -38,6 +45,11 @@ export class UI {
       hudSub: $('hud-sub'),
       hudGems: $('hud-gems'),
       steps: $('steps'),
+      timer: $('timer'),
+      hudCurios: $('hud-curios'),
+      curiosN: $('curios-n'),
+      mirrorVeil: $('mirror-veil'),
+      mirrorBadge: $('mirror-badge'),
       toast: $('toast'),
       banner: $('banner'),
       bannerIndex: $('banner-index'),
@@ -49,6 +61,11 @@ export class UI {
       resultGems: $('result-gems'),
       statGems: $('stat-gems'),
       statSteps: $('stat-steps'),
+      statTime: $('stat-time'),
+      statCurios: $('stat-curios'),
+      recSteps: $('rec-steps'),
+      recTime: $('rec-time'),
+      statsBest: $('stats-best'),
       btnNext: $('btn-next'),
       fade: $('fade'),
       soundBtn: $('btn-sound'),
@@ -263,9 +280,24 @@ export class UI {
     $('si-chapter').textContent = chapter.trim();
     $('si-emotion').textContent = palette.label;
     $('si-name').textContent = def.name;
-    $('si-tagline').textContent = unlocked ? palette.tagline : 'Rallume l’étoile du chapitre précédent pour rejoindre cette île.';
+    $('si-tagline').textContent = unlocked ? palette.tagline : 'Récupère la gemme du chapitre précédent pour rejoindre cette île.';
     const gems = Array.from({ length: total }, (_, g) => `<span class="gem-slot${g < p.gems ? ' is-filled' : ''}">${GEM_SVG}</span>`).join('');
-    $('si-meta').innerHTML = `${gems}<span class="si-state${p.done ? ' done' : ''}">${p.done ? `étoile rallumée${p.steps ? ' · ' + p.steps + ' pas' : ''}` : unlocked ? 'à explorer' : 'verrouillée'}</span>`;
+    $('si-meta').innerHTML = `${gems}<span class="si-state${p.done ? ' done' : ''}">${p.done ? 'gemme récupérée' : unlocked ? 'à explorer' : 'verrouillée'}</span>`;
+    // statistiques du niveau, une fois terminé au moins une fois
+    const curioTotal = [...def.objects, ...(def.under?.objects ?? [])].join('').replace(/[^HYQFNU]/g, '').length;
+    const cell = (label, value) => `<div><dt>${label}</dt><dd>${value}</dd></div>`;
+    $('si-stats').innerHTML = p.done
+      ? [
+          cell('meilleur temps', fmtTime(p.time)),
+          cell('moins de pas', p.steps ?? '—'),
+          cell('cristaux', `${p.gems}/${total}`),
+          cell('curiosités', `${p.curios.length}/${curioTotal}`),
+          ...(p.runs > 1 ? [cell('parties finies', p.runs)] : []),
+          ...(p.last ? [cell('dernière partie', `${fmtTime(p.last.time)} · ${p.last.steps} pas`)] : []),
+        ].join('')
+      : '';
+    if (p.wish) $('si-stats').insertAdjacentHTML('beforeend', `<div class="si-wish"><dt>ton vœu</dt><dd></dd></div>`);
+    if (p.wish) $('si-stats').querySelector('.si-wish dd').textContent = `« ${p.wish} »`;
     const info = $('starmap-info');
     info.style.setProperty('--mood', palette.accent);
     info.classList.toggle('is-locked', !unlocked);
@@ -339,7 +371,7 @@ export class UI {
 
   /* ───────────── HUD ───────────── */
 
-  setLevel(index, def, gemTotal) {
+  setLevel(index, def, gemTotal, curioTotal = 0) {
     const n = String(index + 1).padStart(2, '0');
     this.el.hudIndex.textContent = n;
     this.el.hudName.textContent = def.name;
@@ -356,10 +388,47 @@ export class UI {
     this.el.hudGems.setAttribute('aria-label', `Cristaux : 0 sur ${gemTotal}`);
     this.el.hudGems.style.display = gemTotal ? '' : 'none';
     this.setSteps(0);
+    this.timerShown = null;
+    this.setTimer(0);
+    this.curioTotal = curioTotal;
+    this.setCurios(0);
+    this.setMirror(false);
   }
 
   setSteps(n) {
     this.el.steps.textContent = n;
+  }
+
+  setTimer(sec) {
+    const s = Math.floor(sec);
+    if (s === this.timerShown) return;
+    this.timerShown = s;
+    this.el.timer.textContent = fmtTime(s);
+  }
+
+  setCurios(n, pop = false) {
+    const el = this.el.hudCurios;
+    el.classList.toggle('is-empty', !this.curioTotal);
+    el.classList.toggle('is-complete', !!this.curioTotal && n >= this.curioTotal);
+    this.el.curiosN.textContent = `${n}/${this.curioTotal}`;
+    el.setAttribute('aria-label', `Curiosités : ${n} sur ${this.curioTotal}`);
+    if (pop) {
+      el.classList.remove('pop');
+      void el.offsetWidth;
+      el.classList.add('pop');
+    }
+  }
+
+  // Monde-miroir : liseré irisé + badge « commandes inversées »
+  setMirror(on, flash = false) {
+    this.el.mirrorVeil.classList.toggle('is-on', on);
+    this.el.mirrorBadge.classList.toggle('is-visible', on);
+    if (flash) {
+      const v = this.el.mirrorVeil;
+      v.classList.remove('flash');
+      void v.offsetWidth;
+      v.classList.add('flash');
+    }
   }
 
   fillGem(index, total) {
@@ -439,7 +508,7 @@ export class UI {
 
   /* ───────────── Fin de niveau ───────────── */
 
-  showComplete(v, { def, gems = 0, total = 0, steps = 0, hasNext = false } = {}) {
+  showComplete(v, { def, gems = 0, total = 0, steps = 0, time = 0, curios = 0, curioTotal = 0, record = {}, best = null, hasNext = false } = {}) {
     this.setVisible(this.el.complete, v);
     if (!v) return;
     this.el.completeTitle.textContent = def.name;
@@ -451,6 +520,12 @@ export class UI {
     }
     this.el.statGems.textContent = `${gems}/${total}`;
     this.el.statSteps.textContent = steps;
+    this.el.statTime.textContent = fmtTime(time);
+    this.el.statCurios.textContent = `${curios}/${curioTotal}`;
+    this.el.statCurios.parentElement.style.display = curioTotal ? '' : 'none';
+    this.el.recSteps.classList.toggle('is-on', !!record.steps);
+    this.el.recTime.classList.toggle('is-on', !!record.time);
+    this.el.statsBest.textContent = best && best.runs > 1 ? `records · ${fmtTime(best.time)} · ${best.steps} pas · ${best.curios.length}/${curioTotal} curiosités` : '';
     this.el.btnNext.querySelector('span').textContent = hasNext ? 'Niveau suivant' : 'Retour au titre';
     const box = this.el.resultGems;
     box.innerHTML = '';
