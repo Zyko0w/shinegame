@@ -298,16 +298,56 @@
 
       <section id="credits" class="screen modal" role="dialog" aria-modal="true" aria-labelledby="credits-title">
         <div class="card card-credits">
-          <p class="eyebrow gold"><span class="dot"></span>merci d'avoir joué</p>
-          <h2 id="credits-title" class="card-title">Crédits</h2>
-          <dl class="credits">
-            <div><dt>Développement de jeu</dt><dd>zzyk0</dd></div>
-            <div><dt>Moteur 3D</dt><dd>three.js</dd></div>
-            <div><dt>Post-traitement</dt><dd>pmndrs/postprocessing · N8AO</dd></div>
-            <div><dt>Son</dt><dd>Synthèse WebAudio, générée en temps réel</dd></div>
-            <div><dt>Voix</dt><dd>ElevenLabs</dd></div>
-            <div><dt>Inspiration</dt><dd>Captain Toad: Treasure Tracker</dd></div>
-          </dl>
+          <svg class="cr-astro" viewBox="0 0 400 400" aria-hidden="true">
+            <circle cx="200" cy="200" r="190" /><circle cx="200" cy="200" r="150" stroke-dasharray="2 7" /><ellipse cx="200" cy="200" rx="190" ry="64" />
+            <path d="M200 10 L200 390 M10 200 L390 200" /><circle cx="200" cy="10" r="3" class="cr-dot" /><circle cx="350" cy="200" r="2.2" class="cr-dot" /><circle cx="96" cy="320" r="2" class="cr-dot" />
+          </svg>
+          <header class="cr-head">
+            <p class="eyebrow gold"><span class="dot"></span>merci d’avoir joué</p>
+            <h2 id="credits-title" class="cr-logo">Amnesia</h2>
+            <p class="cr-tag">un puzzle-diorama à travers l’archipel des émotions</p>
+          </header>
+
+          <div class="cr-lead">
+            <span class="cr-role">conception · développement · niveaux</span>
+            <span class="cr-name">zzyk0</span>
+          </div>
+
+          <div class="cr-cols">
+            <section class="cr-sec">
+              <h3 class="cr-h">Technique</h3>
+              <ul>
+                <li><b>three.js</b><span>moteur 3D</span></li>
+                <li><b>postprocessing · N8AO</b><span>lumière, flou, occlusion</span></li>
+                <li><b>Vite</b><span>outillage</span></li>
+              </ul>
+            </section>
+            <section class="cr-sec">
+              <h3 class="cr-h">Son &amp; voix</h3>
+              <ul>
+                <li><b>WebAudio</b><span>musique et bruitages synthétisés en direct</span></li>
+                <li><b>ElevenLabs</b><span>voix des esprits et de Lumi</span></li>
+              </ul>
+            </section>
+          </div>
+
+          <section class="cr-inspi">
+            <h3 class="cr-h">Inspirations</h3>
+            <div class="cr-stars">
+              <figure>
+                <b>Captain Toad</b>
+                <span class="cr-sub">Treasure Tracker · Nintendo</span>
+                <span class="cr-why">des îles-dioramas qu’on fait pivoter</span>
+              </figure>
+              <span class="cr-link" aria-hidden="true"></span>
+              <figure>
+                <b>Hades</b>
+                <span class="cr-sub">Supergiant Games</span>
+                <span class="cr-why">des esprits qui se racontent, réplique après réplique</span>
+              </figure>
+            </div>
+          </section>
+
           <button class="btn btn-primary btn-small" id="btn-credits-close" type="button"><span>Retour</span></button>
         </div>
       </section>

@@ -18,12 +18,17 @@ import { settings } from './settings.js';
 
 export const DEVICE_PR = Math.min(window.devicePixelRatio || 1, 2);
 
+// Paliers hauts : suréchantillonnage (rendu plus fin que l'écran puis réduit),
+// ombres plus définies, AO pleine résolution en ultra, SMAA, bloom plus fin.
+const SUPER_HIGH = Math.max(Math.min(DEVICE_PR, 1.5), 1.25);
+const SUPER_ULTRA = Math.min(2, Math.max(DEVICE_PR, 1) * 1.5);
+
 export const TIERS = [
-  { name: 'éco', pixelRatio: 0.7, ao: false, aoMode: 'Performance', godRays: 24, bloomLevels: 4, shadow: 1024, tilt: false, aa: 'fxaa' },
-  { name: 'basse', pixelRatio: 0.85, ao: false, aoMode: 'Performance', godRays: 36, bloomLevels: 5, shadow: 1024, tilt: true, aa: 'fxaa' },
-  { name: 'moyenne', pixelRatio: 1, ao: false, aoMode: 'Performance', godRays: 48, bloomLevels: 6, shadow: 2048, tilt: true, aa: 'fxaa' },
-  { name: 'haute', pixelRatio: Math.min(DEVICE_PR, 1.5), ao: true, aoMode: 'Low', godRays: 60, bloomLevels: 6, shadow: 2048, tilt: true, aa: 'fxaa' },
-  { name: 'ultra', pixelRatio: DEVICE_PR, ao: true, aoMode: 'Medium', godRays: 60, bloomLevels: 7, shadow: 2048, tilt: true, aa: 'smaa' },
+  { name: 'éco', pixelRatio: 0.7, ao: false, aoMode: 'Performance', aoHalf: true, godRays: 24, bloomLevels: 4, bloomScale: 0.5, shadow: 1024, tilt: false, aa: 'fxaa', smaa: 'high' },
+  { name: 'basse', pixelRatio: 0.85, ao: false, aoMode: 'Performance', aoHalf: true, godRays: 36, bloomLevels: 5, bloomScale: 0.5, shadow: 1024, tilt: true, aa: 'fxaa', smaa: 'high' },
+  { name: 'moyenne', pixelRatio: 1, ao: false, aoMode: 'Performance', aoHalf: true, godRays: 48, bloomLevels: 6, bloomScale: 0.5, shadow: 2048, tilt: true, aa: 'fxaa', smaa: 'high' },
+  { name: 'haute', pixelRatio: SUPER_HIGH, ao: true, aoMode: 'Medium', aoHalf: true, godRays: 72, bloomLevels: 7, bloomScale: 0.5, shadow: 3072, tilt: true, aa: 'smaa', smaa: 'high' },
+  { name: 'ultra', pixelRatio: SUPER_ULTRA, ao: true, aoMode: 'Medium', aoHalf: false, godRays: 96, bloomLevels: 8, bloomScale: 0.75, shadow: 4096, tilt: true, aa: 'smaa', smaa: 'ultra' },
 ];
 
 export const MAX_TIER = TIERS.length - 1;

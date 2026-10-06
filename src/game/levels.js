@@ -86,8 +86,8 @@ export const LEVELS = [
       '.........LW.LT',
       'G......C.D._G.',
       '.K......K....M',
-      'Y..N..........',
-      '.H.G.....L..G.',
+      '...N..........',
+      'YH.G.....L..G.',
       '..K..........C',
       'X.............',
       'U.A...........',
@@ -114,7 +114,7 @@ export const LEVELS = [
           { who: 'lumi', text: 'Promis. Je regarde juste les étoiles dessinées.' },
         ],
       },
-      { at: [0, 9], name: 'le vieux moulin', text: 'Les ailes brassent la poussière d’étoiles. Le moulin moud la lumière pour en faire des lucioles.' },
+      { at: [0, 10], name: 'le vieux moulin', text: 'Les ailes brassent la poussière d’étoiles. Le moulin moud la lumière pour en faire des lucioles.' },
       { at: [3, 9], name: 'le panneau', text: '« Jardin d’Orion — ici, on apprend à regarder en l’air. »' },
     ],
     npcs: [
@@ -160,8 +160,8 @@ export const LEVELS = [
       '.G........',
       'M..=......',
       'W..=..G.HV',
-      '...S..LK.Q',
-      'G..P..B.G.',
+      '...S..LK..',
+      'G..P..B.GQ',
       '.>........',
       '....G::...',
     ],
@@ -175,7 +175,7 @@ export const LEVELS = [
           { who: 'lumi', text: 'On ne pleure que ce qu’on a aimé. Je comprends mieux, maintenant.' },
         ],
       },
-      { at: [9, 3], name: 'la cloche des larmes', text: 'La cloche sonne sous la pluie. Chaque goutte lui répond par un petit écho.' },
+      { at: [9, 4], name: 'la cloche des larmes', text: 'La cloche sonne sous la pluie. Chaque goutte lui répond par un petit écho.' },
     ],
     npcs: [
       {
@@ -273,6 +273,7 @@ export const LEVELS = [
     hints: {
       start: 'Arrête-toi sur la plateforme dorée : elle te portera de l’autre côté. Là-bas, gare au vent glacé.',
       platform: 'En route vers l’autre île…',
+      call: 'La plateforme revient vers toi : attends-la au bord.',
       plate: 'Les dalles bleues tiennent… tant que la plaque reste enfoncée.',
     },
   },
@@ -602,8 +603,8 @@ export const LEVELS = [
       'P.....G..E',
       '.G....C...',
       '..F...M...',
-      '.H........',
-      '...L......',
+      '..........',
+      '.H.L......',
       'G....<....',
     ],
     inside: {
@@ -632,7 +633,7 @@ export const LEVELS = [
     },
     curios: [
       {
-        at: [1, 5],
+        at: [1, 6],
         name: 'la maison de Mérope',
         lines: [
           { who: 'lumi', text: 'Les volets sont fermés en plein jour. Et tous les portraits sont tournés contre le mur.' },

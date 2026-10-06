@@ -79,7 +79,6 @@ export class Particles {
     this.pos = new Float32Array(capacity * 3);
     this.vel = new Float32Array(capacity * 3);
     this.col = new Float32Array(capacity * 3);
-    this.base = new Float32Array(capacity * 3);
     this.alpha = new Float32Array(capacity);
     this.size = new Float32Array(capacity);
     this.life = new Float32Array(capacity);
@@ -89,6 +88,7 @@ export class Particles {
     this.cursor = 0;
     this.alive = 0;
     this.clean = true;
+    this.fresh = false; // couleurs / tailles à renvoyer au GPU (seulement après une émission)
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
@@ -127,6 +127,7 @@ export class Particles {
   emit(origin, color, count, { speed = 2, up = 1.5, life = 0.9, size = 6, gravity = -2.5, drag = 2.2, spread = 0.1, intensity = 2 } = {}) {
     const c = this.tmpColor.set(color).multiplyScalar(intensity);
     this.clean = false;
+    this.fresh = true;
     this.alive = Math.max(this.alive, 1);
     for (let n = 0; n < count; n++) {
       const i = this.cursor;
@@ -140,9 +141,9 @@ export class Particles {
       this.vel[i * 3] = Math.cos(a) * sp;
       this.vel[i * 3 + 1] = up * (0.5 + Math.random() * 0.8);
       this.vel[i * 3 + 2] = Math.sin(a) * sp;
-      this.base[i * 3] = c.r;
-      this.base[i * 3 + 1] = c.g;
-      this.base[i * 3 + 2] = c.b;
+      this.col[i * 3] = c.r;
+      this.col[i * 3 + 1] = c.g;
+      this.col[i * 3 + 2] = c.b;
       this.size[i] = size * (0.5 + Math.random() * 0.8);
       this.maxLife[i] = this.life[i] = life * (0.6 + Math.random() * 0.6);
       this.grav[i] = gravity;
@@ -154,6 +155,7 @@ export class Particles {
   ring(origin, color, count, radiusSpeed = 3, opts = {}) {
     const c = this.tmpColor.set(color).multiplyScalar(opts.intensity ?? 2);
     this.clean = false;
+    this.fresh = true;
     this.alive = Math.max(this.alive, 1);
     for (let n = 0; n < count; n++) {
       const i = this.cursor;
@@ -165,9 +167,9 @@ export class Particles {
       this.vel[i * 3] = Math.cos(a) * radiusSpeed;
       this.vel[i * 3 + 1] = opts.up ?? 0.2;
       this.vel[i * 3 + 2] = Math.sin(a) * radiusSpeed;
-      this.base[i * 3] = c.r;
-      this.base[i * 3 + 1] = c.g;
-      this.base[i * 3 + 2] = c.b;
+      this.col[i * 3] = c.r;
+      this.col[i * 3 + 1] = c.g;
+      this.col[i * 3 + 2] = c.b;
       this.size[i] = opts.size ?? 5;
       this.maxLife[i] = this.life[i] = opts.life ?? 0.7;
       this.grav[i] = 0;
@@ -198,17 +200,17 @@ export class Particles {
       this.pos[j + 1] += this.vel[j + 1] * dt;
       this.pos[j + 2] += this.vel[j + 2] * dt;
       this.alpha[i] = k < 0.8 ? k / 0.8 : (1 - k) / 0.2;
-      this.col[j] = this.base[j];
-      this.col[j + 1] = this.base[j + 1];
-      this.col[j + 2] = this.base[j + 2];
     }
     this.clean = alive === 0 && this.alive === 0;
     this.alive = alive;
     this.burst.visible = alive > 0;
     const a = this.geo.attributes;
     a.position.needsUpdate = true;
-    a.color.needsUpdate = true;
     a.aAlpha.needsUpdate = true;
-    a.aSize.needsUpdate = true;
+    if (this.fresh) {
+      a.color.needsUpdate = true;
+      a.aSize.needsUpdate = true;
+      this.fresh = false;
+    }
   }
 }

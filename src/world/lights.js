@@ -51,6 +51,8 @@ export function createLights(scene, renderer) {
     setShadowSize(size) {
       if (key.shadow.mapSize.x === size) return;
       key.shadow.mapSize.set(size, size);
+      // rayon de flou en texels : même douceur (en unités monde) quelle que soit la taille
+      key.shadow.radius = 3 * (size / 2048);
       key.shadow.map?.dispose();
       key.shadow.map = null;
       renderer.shadowMap.needsUpdate = true;

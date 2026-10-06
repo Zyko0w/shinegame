@@ -49,7 +49,7 @@ const TRAPS = [
     id: 'wind',
     name: 'Éoliennes',
     where: 'Véga · Lyra · Alcor · Mérope',
-    text: 'Elles soufflent par intervalles. Dans leur couloir, Lumi est poussé jusqu’au premier obstacle… ou dans le vide.',
+    text: 'Elles soufflent par intervalles. Dans leur couloir, Lumi est poussé jusqu’au premier obstacle… ou dans le vide. Les chevrons au sol clignotent juste avant la bourrasque.',
     art: () => {
       const [fx, fy] = iso(0, 1);
       return svg(`${tile(0, 1)}${tile(1, 1)}${tile(2, 1)}

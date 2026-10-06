@@ -57,7 +57,7 @@ function card(id) {
     case 'platform':
       return {
         title: 'Plateforme mobile',
-        html: `Arrête-toi sur la <strong>dalle dorée</strong> : elle t'emporte de l'autre côté du vide en suivant les pointillés. Elle fonctionne dans les deux sens.`,
+        html: `Arrête-toi sur la <strong>dalle dorée</strong> : elle t'emporte de l'autre côté du vide en suivant les pointillés. Elle fonctionne dans les deux sens ; restée de l'autre côté, elle revient dès que tu l'attends au bord.`,
       };
     case 'portal':
       return {
@@ -92,7 +92,7 @@ function card(id) {
     case 'wind':
       return {
         title: 'Bourrasques',
-        html: `Les <strong>éoliennes</strong> soufflent par intervalles. Dans leur couloir, Lumi est <strong>poussé</strong> jusqu'au premier obstacle… ou <strong>dans le vide</strong>.<br>Observe leur rythme et traverse quand elles se calment.`,
+        html: `Les <strong>éoliennes</strong> soufflent par intervalles. Dans leur couloir, Lumi est <strong>poussé</strong> jusqu'au premier obstacle… ou <strong>dans le vide</strong>.<br>Les <strong>chevrons au sol</strong> montrent le couloir et clignotent juste avant la bourrasque : traverse quand ils se calment.`,
       };
     case 'lava':
       return {

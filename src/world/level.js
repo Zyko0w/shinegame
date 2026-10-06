@@ -702,10 +702,14 @@ export class Level {
         prop.position.copy(pos);
         const fan = { tile: t, dir: t.fanDir, prop, phase: this.fans.length * 1.3, on: false };
         const lane = this.lane(fan);
-        const streaks = HZ.createWindStreaks(pos, t.fanDir, Math.max(1, lane.length), this.palette.biome?.atmo?.color ?? 0xdff4ff);
+        const windColor = this.palette.biome?.atmo?.color ?? 0xdff4ff;
+        const streaks = HZ.createWindStreaks(pos, t.fanDir, Math.max(1, lane.length), windColor);
         face.group.add(streaks.points);
         fan.streaks = streaks;
-        this.disposables.push(streaks.mat, streaks.points.geometry);
+        // chevrons au sol : on voit le couloir du vent (et quand il va souffler)
+        fan.chevrons = HZ.createWindLane(lane, face, t.fanDir, windColor);
+        face.group.add(fan.chevrons.mesh);
+        this.disposables.push(streaks.mat, streaks.points.geometry, fan.chevrons.mat, prop.userData.coreMat);
         this.fans.push(fan);
         break;
       }
@@ -794,6 +798,8 @@ export class Level {
   }
 
   updatePick(t) {
+    // toute case qui change d'état passe par ici : les couloirs de vent en cache sont périmés
+    this.gridVersion = (this.gridVersion ?? 0) + 1;
     const face = t.layer;
     const wx = t.x - face.offsetX;
     const wz = t.z - face.offsetZ;
@@ -928,8 +934,20 @@ export class Level {
     return bridges.length;
   }
 
-  // Plateforme : transporte Lumi de la station `tile` à l'autre
-  ride(tile, onDone) {
+  // Lumi attend au bord de la station vide : la plateforme revient à lui
+  // (sinon, après une chute, elle pourrait rester de l'autre côté du vide)
+  callPlatform(tile) {
+    for (const p of this.platforms) {
+      if (p.moving || p.face !== tile.layer || tile === p.at) continue;
+      const other = p.at === p.a ? p.b : p.a;
+      if (Math.abs(other.x - tile.x) + Math.abs(other.z - tile.z) !== 1 || Math.abs(other.h - tile.h) > 1) continue;
+      if (this.ride(p.at, null, false)) return p;
+    }
+    return null;
+  }
+
+  // Plateforme : transporte Lumi (ou revient à vide) de la station `tile` à l'autre
+  ride(tile, onDone, carry = true) {
     const p = tile.platform;
     if (!p || p.moving || p.at !== tile) return false;
     const dest = tile === p.a ? p.b : p.a;
@@ -946,7 +964,7 @@ export class Level {
       ease: ease.inOutSine,
       onUpdate: (k) => {
         p.mesh.position.copy(start).addScaledVector(delta, k);
-        this.carry.addScaledVector(delta, k - last);
+        if (carry) this.carry.addScaledVector(delta, k - last);
         last = k;
       },
       onComplete: () => {
@@ -1060,7 +1078,9 @@ export class Level {
   }
 
   // Cases balayées par la bourrasque : jusqu'au premier obstacle ou mur
+  // (recalculé seulement quand une case change, pas à chaque image)
   lane(fan, max = 7) {
+    if (fan.laneVersion === this.gridVersion && fan.laneCache) return fan.laneCache;
     const out = [];
     let cur = fan.tile;
     for (let i = 0; i < max; i++) {
@@ -1069,6 +1089,8 @@ export class Level {
       out.push(n);
       cur = n;
     }
+    fan.laneCache = out;
+    fan.laneVersion = this.gridVersion;
     return out;
   }
 
@@ -1131,28 +1153,57 @@ export class Level {
       to.obj = PUSH_BLOCK;
     }
     this.updatePick(to);
-    this.track({
-      duration: fills ? 0.55 : 0.32,
-      ease: fills ? ease.inCubic : ease.outCubic,
-      onUpdate: (k) => {
-        block.position.lerpVectors(from, dest, Math.min(1, k * (fills ? 1.6 : 1)));
-        if (!fills) return;
-        // il s'enfonce jusqu'à affleurer ; dans une fosse, il devient une colonne
-        // de pierre jusqu'au pied de l'île
-        const top = dest.y + 0.8 * (1 - k);
-        if (intoPit) {
-          block.position.y = 0;
-          block.scale.y = Math.max(0.01, top / 0.8);
-        } else block.position.y = top - 0.8;
-      },
-      onComplete: () => {
-        if (fills) {
-          block.userData.runeMat.opacity = 0.15;
+    if (!fills) {
+      this.track({
+        duration: 0.32,
+        ease: ease.outCubic,
+        onUpdate: (k) => block.position.lerpVectors(from, dest, k),
+        onComplete: () => onDone?.(to, false),
+      });
+    } else {
+      // 1. glisse jusqu'au-dessus du trou ; 2. bascule et tombe dedans (gravité) ;
+      // 3. petit rebond, puis il s'ancre : son dessus affleure le sol
+      const { body, runeMat } = block.userData;
+      const rest = dest.y - 0.8; // pied du bloc une fois le trou comblé
+      const tilt = (this.rnd() - 0.5) * 0.5;
+      const SLIDE = 0.34;
+      const DROP = 0.8;
+      const runes0 = runeMat.opacity;
+      this.track({
+        duration: 0.9,
+        ease: (x) => x,
+        onUpdate: (_, t) => {
+          if (t < SLIDE) {
+            const k = ease.outCubic(t / SLIDE);
+            block.position.lerpVectors(from, dest, k);
+            block.position.y = from.y;
+            return;
+          }
+          const k = Math.min(1, (t - SLIDE) / (DROP - SLIDE));
+          block.position.x = dest.x;
+          block.position.z = dest.z;
+          // chute accélérée, léger rebond sur la fin
+          const fall = k < 1 ? k * k : 1;
+          const bounce = t > DROP ? Math.sin(((t - DROP) / (1 - DROP)) * Math.PI) * 0.05 : 0;
+          block.position.y = from.y + (rest - from.y) * fall + bounce;
+          block.rotation.set(tilt * Math.sin(k * Math.PI), 0, -tilt * 0.6 * Math.sin(k * Math.PI));
+          runeMat.opacity = runes0 + (0.12 - runes0) * k;
+        },
+        onComplete: () => {
+          block.position.copy(dest);
+          block.position.y = rest;
+          block.rotation.set(0, 0, 0);
+          if (intoPit) {
+            // la colonne de pierre descend jusqu'au pied de l'île (sous le sol, invisible d'en haut)
+            body.scale.y = Math.max(1, dest.y / 0.8);
+            body.position.y = 0.8 - 0.8 * body.scale.y;
+          }
+          for (const c of block.children) if (c !== body) c.visible = false;
           this.coverLava(to);
-        }
-        onDone?.(to, fills);
-      },
-    });
+          onDone?.(to, true);
+        },
+      });
+    }
     // marqueur de fosse : il disparaît une fois comblée
     if (fills && to.prop && to.prop !== block) to.prop.visible = false;
     if (fills) to.prop = block;
@@ -1729,11 +1780,23 @@ export class Level {
     for (const f of this.fans) {
       const on = this.fanOn(f);
       f.on = on;
+      // préavis : la turbine accélère et les chevrons clignotent avant la bourrasque
+      const c = HZ.WIND_CYCLE;
+      const phase = (this.clock + f.phase) % c.period;
+      const warn = on ? 0 : Math.max(0, 1 - (c.period - phase) / 0.9);
       const u = f.prop.userData;
-      u.spin += dt * (on ? 14 : 1.2);
+      u.glow += ((on ? 1 : warn * 0.4) - u.glow) * Math.min(1, dt * 8);
+      u.spin += dt * (1.2 + warn * 8 + u.glow * 18);
       u.hub.rotation.z = u.spin;
+      const g = 0.35 + u.glow * 2.6;
+      u.coreMat.color.setRGB(0.55 * g, 0.85 * g, 1.0 * g);
+      u.halo.material.opacity = u.glow * 0.55;
       const s = f.streaks.mat.uniforms.uOn;
       s.value += ((on ? 1 : 0) - s.value) * Math.min(1, dt * 6);
+      f.streaks.points.visible = s.value > 0.005; // pas de dessin quand le vent dort
+      const cu = f.chevrons.mat.uniforms;
+      cu.uOn.value = s.value;
+      cu.uWarn.value = warn;
     }
 
     for (const c of this.animated.caves) {

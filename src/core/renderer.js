@@ -142,6 +142,7 @@ export function createRenderer(canvas, scene, camera) {
         gammaCorrection: false,
       });
       ao.setQualityMode(state.aoMode);
+      ao.configuration.halfRes = state.aoHalf;
       composer.addPass(ao, 1);
       ao.enabled = state.aoOn;
       lastSize = '';
@@ -217,7 +218,7 @@ export function createRenderer(canvas, scene, camera) {
   const grade = new GradeEffect();
   composer.addPass(new EffectPass(camera, grade));
 
-  const state = { pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5), tilt: true, aoMode: 'Performance', aoOn: false, godRaysOn: true, samples: 48, bloomLevels: 6 };
+  const state = { pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5), tilt: true, aoMode: 'Performance', aoHalf: true, aoOn: false, godRaysOn: true, samples: 48, bloomLevels: 6, bloomScale: 0.5, smaa: 'high' };
   let lastSize = '';
 
   // Ne réalloue les buffers que si la taille ou la densité change vraiment
@@ -242,7 +243,11 @@ export function createRenderer(canvas, scene, camera) {
     resize: applySize,
     // Chaque réglage n'est appliqué que s'il change : certains recompilent des
     // shaders (AO, nombre d'échantillons des god rays) ou réallouent des buffers.
-    setQuality({ pixelRatio, tilt, aberration, ao: aoOn, aoMode, godRays: samples, godRaysOn, bloomLevels, aa }) {
+    setQuality({ pixelRatio, tilt, aberration, ao: aoOn, aoMode, aoHalf, godRays: samples, godRaysOn, bloomLevels, bloomScale, aa, smaa: smaaPreset }) {
+      if (state.smaa !== smaaPreset) {
+        smaa.applyPreset(smaaPreset === 'ultra' ? SMAAPreset.ULTRA : SMAAPreset.HIGH);
+        state.smaa = smaaPreset;
+      }
       setAA(aa);
       state.pixelRatio = pixelRatio;
       state.tilt = tilt;
@@ -253,13 +258,16 @@ export function createRenderer(canvas, scene, camera) {
       if (ao) {
         ao.enabled = aoOn;
         if (aoOn && state.aoMode !== aoMode) ao.setQualityMode(aoMode);
+        if (ao.configuration.halfRes !== aoHalf) ao.configuration.halfRes = aoHalf;
       }
       state.aoMode = aoMode;
+      state.aoHalf = aoHalf;
       if (state.samples !== samples) godRays.godRaysMaterial.samples = state.samples = samples;
       const fn = godRaysOn ? BlendFunction.SCREEN : BlendFunction.SKIP;
       if (godRays.blendMode.blendFunction !== fn) godRays.blendMode.blendFunction = fn;
       state.godRaysOn = godRaysOn;
       if (state.bloomLevels !== bloomLevels) bloom.mipmapBlurPass.levels = state.bloomLevels = bloomLevels;
+      if (state.bloomScale !== bloomScale) bloom.resolution.scale = state.bloomScale = bloomScale;
     },
     // Préchauffe les shaders en DESSINANT une image avec les objets encore
     // cachés (dalles de pont, particules…) et la shadow map : sous ANGLE/D3D,

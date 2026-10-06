@@ -452,6 +452,10 @@ player.onArrive = (tile) => {
   const stopped = player.queue.length === 0 && playing();
   if (obstacles.onArrive(tile, stopped)) return pointer.refresh();
   if (stopped && tile.platform) ridePlatform(tile);
+  else if (playing() && game.level.callPlatform(tile)) {
+    sfx.platform();
+    hintOnce('call', 'var(--gold)');
+  }
   if (stopped && tile.obj === 'O') flipIsland(tile);
   if (stopped && tile.jumpTo) launchJump(tile);
   if (stopped && tile.obj === 'E') enterCave(tile);
@@ -1549,6 +1553,25 @@ document.addEventListener('visibilitychange', () => {
 
 /* ═════════════ Boucle ═════════════ */
 
+// Scène cachée par une interface : la carte des îles est opaque (inutile de
+// redessiner la 3D une fois son fondu terminé) ; derrière une fenêtre floutée
+// (pause, paramètres, crédits…), 30 images/s suffisent. Sans dessin, le
+// canvas garde simplement sa dernière image.
+const OPAQUE = ['levels'].map((id) => document.getElementById(id));
+const VEILS = ['pause', 'settings', 'credits', 'docs', 'complete'].map((id) => document.getElementById(id));
+let coverSince = 0;
+let coverKind = null;
+let lastDraw = 0;
+function sceneCover(t) {
+  const kind = OPAQUE.some((el) => el.classList.contains('is-visible')) ? 'full' : VEILS.some((el) => el.classList.contains('is-visible')) ? 'veil' : null;
+  if (kind !== coverKind) {
+    coverKind = kind;
+    coverSince = t;
+  }
+  // on attend la fin du fondu d'apparition (0,6 s) avant d'économiser
+  return t - coverSince > 0.7 ? kind : null;
+}
+
 const timer = new THREE.Timer();
 let gameTime = 0;
 let shadowTrail = 0;
@@ -1611,11 +1634,15 @@ function frame(timestamp) {
   if (sun.visible) sun.position.copy(star.userData.spin.getWorldPosition(sunPos));
 
   globalUniforms.uTime.value = t;
-  rig.beginShake(dt);
-  stats.beginGPU();
-  composer.render(dt);
-  stats.endGPU();
-  rig.endShake();
+  const cover = sceneCover(t);
+  if (cover !== 'full' && !(cover === 'veil' && t - lastDraw < 1 / 31)) {
+    lastDraw = t;
+    rig.beginShake(dt);
+    stats.beginGPU();
+    composer.render(dt);
+    stats.endGPU();
+    rig.endShake();
+  }
 
   stats.addFrame(rawDt * 1000, performance.now() - t0);
   perfHud.update(rawDt);

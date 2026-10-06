@@ -77,7 +77,7 @@ function build(def, issues) {
 // Exploration des états (case, reflet, blocs, fosses comblées). Les plateformes
 // sont des liaisons a↔b (Lumi peut toujours faire venir la plateforme à lui).
 const MAX_STATES = 400000;
-function reachable({ tiles }, start, { bridgesOn, mirrors = true }) {
+function reachable({ tiles }, start, { bridgesOn, mirrors = true, from = null, onState = null }) {
   const tk = (t) => `${t.side}:${t.x},${t.z}`;
   const at = (t, dx, dz) => tiles.get(`${t.side}:${t.x + dx},${t.z + dz}`);
   // D et _ changent pendant la partie : seuls les autres objets bloquent pour de bon
@@ -107,8 +107,9 @@ function reachable({ tiles }, start, { bridgesOn, mirrors = true }) {
   };
   const blocks0 = new Set([...tiles.values()].filter((t) => t.obj === PUSH_BLOCK).map(tk));
   const stateKey = (t, m, st) => `${tk(t)}|${m ? 1 : 0}|${[...st.blocks].sort()}|${[...st.filled].sort()}|${[...st.broken].sort()}`;
-  const first = { t: start, m: false, blocks: blocks0, filled: new Set(), broken: new Set() };
-  const seenStates = new Set([stateKey(start, false, first)]);
+  const first = from ?? { t: start, m: false, blocks: blocks0, filled: new Set(), broken: new Set() };
+  const seenStates = new Set([stateKey(first.t, first.m, first)]);
+  onState?.(first);
   const seen = new Set([start]);
   const q = [first];
   for (let head = 0; head < q.length; head++) {
@@ -151,6 +152,7 @@ function reachable({ tiles }, start, { bridgesOn, mirrors = true }) {
       seenStates.add(k);
       seen.add(n.t);
       q.push({ ...n, m: nm });
+      onState?.(q[q.length - 1]);
     }
   }
   return seen;
@@ -214,7 +216,23 @@ for (const def of LEVELS) {
     if (button && before.has(star)) issues.push("étoile accessible sans l'interrupteur");
     if (all.some((t) => t.obj === RECEPTOR) && !beamSolvable(def, world, before)) issues.push('rayon impossible à guider jusqu’au récepteur');
     if (all.some((t) => t.obj === EMITTER) && !(def.beams ?? []).length) issues.push('émetteur sans direction (beams)');
-    const after = reachable(world, start, { bridgesOn: true });
+    // états où Lumi passe sur un point de reprise (lanterne, départ, portail, grotte)
+    const RESPAWN = new Set(['L', 'P', 'O', 'E']);
+    const cfgKey = (st) => `${st.m ? 1 : 0}|${[...st.blocks].sort()}|${[...st.filled].sort()}`;
+    const respawnStates = new Map();
+    const byCfg = new Map(); // configuration (reflet, blocs, fosses) → états atteints
+    const after = reachable(world, start, {
+      bridgesOn: true,
+      onState: (st) => {
+        const ck = cfgKey(st);
+        if (!byCfg.has(ck)) byCfg.set(ck, []);
+        if (byCfg.get(ck).length < 40) byCfg.get(ck).push(st);
+        if (!RESPAWN.has(st.t.obj)) return;
+        // à la reprise, les dalles fragiles se reforment
+        const k = `${st.t.side}:${st.t.x},${st.t.z}|${ck}`;
+        if (!respawnStates.has(k)) respawnStates.set(k, { ...st, broken: new Set() });
+      },
+    });
     if (!after.has(star)) issues.push('étoile inaccessible');
     if (mirror && reachable(world, start, { bridgesOn: true, mirrors: false }).has(star)) issues.push('étoile accessible sans passer de miroir');
     all.filter((t) => t.obj === 'G' && !after.has(t)).forEach((g) => issues.push(`cristal (${g.side}:${g.x},${g.z}) inaccessible`));
@@ -223,6 +241,29 @@ for (const def of LEVELS) {
     const near = (n) => DIRS.some(([dx, dz]) => after.has(world.tiles.get(`${n.side}:${n.x + dx},${n.z + dz}`)));
     all.filter((t) => t.npc && !near(t)).forEach((n) => issues.push(`personnage ${n.npc} injoignable`));
     all.filter((t) => CURIOS.has(t.obj) && !near(t)).forEach((c) => issues.push(`curiosité ${c.obj} (${c.x},${c.z}) injoignable`));
+    // une case ne doit toucher qu'une curiosité (sinon l'une masque l'autre)
+    for (const t of after) {
+      const touch = DIRS.map(([dx, dz]) => world.tiles.get(`${t.side}:${t.x + dx},${t.z + dz}`)).filter((n) => n && CURIOS.has(n.obj));
+      if (touch.length > 1) issues.push(`case (${t.side}:${t.x},${t.z}) voisine de deux curiosités`);
+    }
+    // chute : depuis chaque point de reprise (lanternes, départ, portail, grotte),
+    // dans le reflet ou non, la gemme doit rester accessible
+    // (on ne retient pas les impasses façon Sokoban : si la configuration des
+    // blocs n'a plus de solution nulle part, c'est le bloc mal poussé, pas la chute)
+    const stuck = new Set();
+    const alive = new Map();
+    const cfgAlive = (st) => {
+      const ck = cfgKey(st);
+      if (!alive.has(ck)) alive.set(ck, byCfg.get(ck).some((o) => reachable(world, o.t, { bridgesOn: true, from: { ...o, broken: new Set() } }).has(star)));
+      return alive.get(ck);
+    };
+    for (const st of respawnStates.values()) {
+      const r = st.t;
+      const where = `${r.side}:${r.x},${r.z}${st.m ? ', reflet' : ''}`;
+      if (stuck.has(where) || reachable(world, r, { bridgesOn: true, from: st }).has(star)) continue;
+      if (cfgAlive(st)) stuck.add(where);
+    }
+    for (const w of stuck) issues.push(`bloqué après une chute (reprise en ${w})`);
     const curios = all.filter((t) => CURIOS.has(t.obj)).length;
     if (!issues.length) console.log(`✓ ${def.name} — ${all.length} cases, ${all.filter((t) => t.obj === 'G').length} cristaux, ${curios} curiosités`);
   } catch (e) {

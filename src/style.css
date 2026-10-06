@@ -879,10 +879,113 @@ kbd {
 
 /* ───────────────── Crédits ───────────────── */
 
-.card-credits { text-align: left; }
-.credits { display: grid; gap: 14px; margin-bottom: 26px; }
-.credits dt { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-faint); }
-.credits dd { margin-top: 3px; font-size: 15px; }
+/* Une carte du ciel : astrolabe en filigrane, noms gravés à l'encre dorée,
+   les deux inspirations reliées comme deux étoiles d'une constellation. */
+.card.card-credits {
+  width: min(640px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow: hidden auto;
+  padding: 30px 44px 26px;
+  text-align: center;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold-line) transparent;
+}
+.cr-astro {
+  position: absolute;
+  left: 50%;
+  top: -150px;
+  width: 520px;
+  height: 520px;
+  margin-left: -260px;
+  fill: none;
+  stroke: rgba(255, 212, 122, 0.09);
+  stroke-width: 0.8;
+  pointer-events: none;
+  animation: spin 160s linear infinite;
+}
+.cr-astro .cr-dot { fill: var(--gold); stroke: none; opacity: 0.6; }
+.card-credits > *:not(.cr-astro) { position: relative; }
+
+.cr-head { display: flex; flex-direction: column; align-items: center; }
+.cr-logo {
+  margin: 10px 0 4px;
+  font-family: var(--f-display);
+  font-weight: 340;
+  font-style: italic;
+  font-variation-settings: 'opsz' 144;
+  font-size: clamp(46px, 8vw, 64px);
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  background: linear-gradient(180deg, #fffaf0 0%, #ffe3a8 50%, rgba(255, 190, 120, 0.6) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 22px rgba(255, 200, 120, 0.3));
+}
+.cr-tag { font-size: 14px; font-style: italic; color: var(--ink-dim); }
+
+.cr-lead {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 20px auto 20px;
+  padding: 12px 0;
+  border-block: 1px solid var(--gold-soft);
+  max-width: 360px;
+}
+.cr-role, .cr-h { font-family: var(--f-mono); font-size: 10.5px; font-weight: 400; letter-spacing: 0.26em; text-transform: uppercase; color: rgba(255, 220, 160, 0.6); }
+.cr-name { font-family: var(--f-display); font-size: 28px; font-style: italic; color: var(--ink-gold); text-shadow: 0 0 20px rgba(255, 200, 120, 0.35); }
+
+.cr-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; text-align: left; }
+.cr-sec + .cr-sec { padding-left: 28px; border-left: 1px solid var(--line); }
+.cr-h { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.cr-h::before { content: '✦'; font-size: 10px; color: var(--gold); text-shadow: 0 0 8px var(--gold); }
+.cr-sec ul { list-style: none; display: grid; gap: 9px; }
+.cr-sec li { display: flex; flex-direction: column; gap: 1px; }
+.cr-sec b { font-family: var(--f-display); font-size: 17px; font-weight: 500; color: var(--ink); }
+.cr-sec li span { font-size: 12.5px; color: var(--ink-faint); line-height: 1.4; }
+
+.cr-inspi { margin: 22px 0 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.cr-inspi .cr-h { justify-content: center; }
+.cr-inspi .cr-h::after { content: '✦'; font-size: 10px; color: var(--gold); text-shadow: 0 0 8px var(--gold); }
+.cr-stars { display: grid; grid-template-columns: 1fr 64px 1fr; align-items: stretch; margin-top: 4px; }
+.cr-link { align-self: center; }
+.cr-stars figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 12px 10px;
+  border-radius: 4px;
+  background: radial-gradient(80% 90% at 50% 0%, rgba(255, 212, 122, 0.1), transparent 75%);
+}
+.cr-stars b { font-family: var(--f-display); font-size: 24px; font-weight: 400; font-style: italic; color: var(--ink-gold); }
+.cr-sub { font-family: var(--f-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); }
+.cr-why { margin-top: 6px; font-size: 13px; line-height: 1.45; color: var(--ink-dim); max-width: 210px; }
+/* trait de constellation entre les deux étoiles */
+.cr-link { position: relative; height: 1px; background: linear-gradient(90deg, transparent, var(--gold-line), transparent); }
+.cr-link::before, .cr-link::after { content: ''; position: absolute; top: -2px; width: 5px; height: 5px; border-radius: 50%; background: #fff3d0; box-shadow: 0 0 8px var(--gold); }
+.cr-link::before { left: 4px; }
+.cr-link::after { right: 4px; }
+#btn-credits-close { min-width: 160px; }
+
+/* apparition en cascade à l'ouverture */
+#credits .card-credits > :not(.cr-astro) { opacity: 0; transform: translateY(10px); }
+#credits.is-visible .card-credits > :not(.cr-astro) { animation: fade-up 0.8s var(--ease-out) forwards; }
+#credits.is-visible .cr-lead { animation-delay: 0.12s !important; }
+#credits.is-visible .cr-cols { animation-delay: 0.22s !important; }
+#credits.is-visible .cr-inspi { animation-delay: 0.32s !important; }
+#credits.is-visible #btn-credits-close { animation-delay: 0.42s !important; }
+
+@media (max-width: 720px) {
+  .card.card-credits { padding: 30px 20px 24px; }
+  .cr-cols { grid-template-columns: 1fr; gap: 20px; }
+  .cr-sec + .cr-sec { padding-left: 0; padding-top: 20px; border-left: 0; border-top: 1px solid var(--line); }
+  .cr-stars { grid-template-columns: 1fr; gap: 4px; }
+  .cr-link { width: 1px; height: 28px; margin: 0 auto; background: linear-gradient(180deg, transparent, var(--gold-line), transparent); }
+  .cr-link::before, .cr-link::after { display: none; }
+}
 
 @media (max-width: 720px) {
   .main-menu { margin-top: 22px; }
