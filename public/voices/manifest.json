@@ -1,36 +1,4 @@
 {
-  "orion/orion/l0": {
-    "file": "voices/orion/orion-l0.mp3",
-    "hash": "955f15d3adb0"
-  },
-  "orion/orion/l1": {
-    "file": "voices/orion/orion-l1.mp3",
-    "hash": "61a59e75314b"
-  },
-  "orion/orion/l2": {
-    "file": "voices/orion/orion-l2.mp3",
-    "hash": "e73ece5046de"
-  },
-  "orion/orion/l4": {
-    "file": "voices/orion/orion-l4.mp3",
-    "hash": "93c7e2a779ac"
-  },
-  "orion/orion/r0": {
-    "file": "voices/orion/orion-r0.mp3",
-    "hash": "a21904a370af"
-  },
-  "orion/outro": {
-    "file": "voices/orion/outro.mp3",
-    "hash": "b1978df9f4e3"
-  },
-  "vega/mira/l1": {
-    "file": "voices/vega/mira-l1.mp3",
-    "hash": "0855dedc9be4"
-  },
-  "vega/mira/l2": {
-    "file": "voices/vega/mira-l2.mp3",
-    "hash": "5cb704057a6c"
-  },
   "vega/mira/l4": {
     "file": "voices/vega/mira-l4.mp3",
     "hash": "d4ff007e0111"
@@ -39,37 +7,9 @@
     "file": "voices/vega/mira-r0.mp3",
     "hash": "b4ea9a68f290"
   },
-  "vega/outro": {
-    "file": "voices/vega/outro.mp3",
-    "hash": "ba796e2004f7"
-  },
-  "lyra/lyre/l1": {
-    "file": "voices/lyra/lyre-l1.mp3",
-    "hash": "4e96c971b2e3"
-  },
-  "lyra/lyre/l2": {
-    "file": "voices/lyra/lyre-l2.mp3",
-    "hash": "da35374f9635"
-  },
-  "lyra/lyre/l4": {
-    "file": "voices/lyra/lyre-l4.mp3",
-    "hash": "d3ad216b61c0"
-  },
   "lyra/lyre/r0": {
     "file": "voices/lyra/lyre-r0.mp3",
     "hash": "bad18294b361"
-  },
-  "lyra/outro": {
-    "file": "voices/lyra/outro.mp3",
-    "hash": "f1c631c99dce"
-  },
-  "andromede/andra/l1": {
-    "file": "voices/andromede/andra-l1.mp3",
-    "hash": "907459ac7ebe"
-  },
-  "andromede/andra/l2": {
-    "file": "voices/andromede/andra-l2.mp3",
-    "hash": "2e6240151c89"
   },
   "andromede/andra/l4": {
     "file": "voices/andromede/andra-l4.mp3",
@@ -79,18 +19,6 @@
     "file": "voices/andromede/andra-r0.mp3",
     "hash": "75d035fc823c"
   },
-  "andromede/outro": {
-    "file": "voices/andromede/outro.mp3",
-    "hash": "161058776645"
-  },
-  "betelgeuse/betel/l1": {
-    "file": "voices/betelgeuse/betel-l1.mp3",
-    "hash": "ca7d011d0e50"
-  },
-  "betelgeuse/betel/l2": {
-    "file": "voices/betelgeuse/betel-l2.mp3",
-    "hash": "e2a2fc0af851"
-  },
   "betelgeuse/betel/l4": {
     "file": "voices/betelgeuse/betel-l4.mp3",
     "hash": "df639134c2d6"
@@ -99,33 +27,13 @@
     "file": "voices/betelgeuse/betel-r0.mp3",
     "hash": "ccc7cdf25d7e"
   },
-  "betelgeuse/outro": {
-    "file": "voices/betelgeuse/outro.mp3",
-    "hash": "f96bc8c8ec59"
-  },
-  "antares/antar/l1": {
-    "file": "voices/antares/antar-l1.mp3",
-    "hash": "d923462fd3e7"
-  },
   "antares/antar/l2": {
     "file": "voices/antares/antar-l2.mp3",
     "hash": "028d7c47dd3c"
   },
-  "antares/antar/l4": {
-    "file": "voices/antares/antar-l4.mp3",
-    "hash": "c8d471c2b687"
-  },
   "antares/antar/r0": {
     "file": "voices/antares/antar-r0.mp3",
     "hash": "3edc68fac350"
-  },
-  "antares/outro": {
-    "file": "voices/antares/outro.mp3",
-    "hash": "d106352461ab"
-  },
-  "orion/orion/l3": {
-    "file": "voices/orion/orion-l3.mp3",
-    "hash": "e1486430c3f3"
   },
   "vega/mira/l0": {
     "file": "voices/vega/mira-l0.mp3",
@@ -135,33 +43,13 @@
     "file": "voices/vega/mira-l3.mp3",
     "hash": "e66e1f326aec"
   },
-  "lyra/lyre/l0": {
-    "file": "voices/lyra/lyre-l0.mp3",
-    "hash": "c4991a5bf2fb"
-  },
   "lyra/lyre/l3": {
     "file": "voices/lyra/lyre-l3.mp3",
     "hash": "76740277922e"
   },
-  "andromede/andra/l0": {
-    "file": "voices/andromede/andra-l0.mp3",
-    "hash": "b35868f4e553"
-  },
   "andromede/andra/l3": {
     "file": "voices/andromede/andra-l3.mp3",
     "hash": "80d4746f6630"
-  },
-  "betelgeuse/betel/l0": {
-    "file": "voices/betelgeuse/betel-l0.mp3",
-    "hash": "057f4fb24c36"
-  },
-  "betelgeuse/betel/l3": {
-    "file": "voices/betelgeuse/betel-l3.mp3",
-    "hash": "d392b576396e"
-  },
-  "antares/antar/l0": {
-    "file": "voices/antares/antar-l0.mp3",
-    "hash": "f96a1b9dbb4a"
   },
   "antares/antar/l3": {
     "file": "voices/antares/antar-l3.mp3",

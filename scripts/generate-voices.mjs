@@ -3,6 +3,9 @@
 //
 //   npm run voices          → génère ce qui manque ou a changé
 //   npm run voices -- --all → régénère tout
+//   npm run voices -- --prune → retire seulement du manifeste les répliques
+//                               dont le texte a changé (hors ligne) : le jeu
+//                               utilise alors la voix du navigateur pour elles
 //
 // Sortie : public/voices/<niveau>/<personnage>-<l|r><n>.mp3 et outro.mp3
 //          public/voices/manifest.json  (clé de réplique → fichier + empreinte)
@@ -34,6 +37,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'public', 'voices');
 const manifestPath = join(outDir, 'manifest.json');
 const all = process.argv.includes('--all');
+const prune = process.argv.includes('--prune');
 
 // Toutes les répliques à dire, avec une clé stable (utilisée par le jeu)
 function collectLines() {
@@ -57,6 +61,22 @@ const hash = (o) => createHash('sha1').update(JSON.stringify(o)).digest('hex').s
 
 const lines = collectLines();
 const manifest = existsSync(manifestPath) && !all ? JSON.parse(readFileSync(manifestPath, 'utf8')) : {};
+if (prune) {
+  let n = 0;
+  const current = new Map(lines.map((l) => [l.key, l]));
+  for (const [k, v] of Object.entries(manifest)) {
+    const l = current.get(k);
+    const cast = l && CAST[l.who];
+    if (!l || !cast || v.hash !== hash({ text: speakable(l.text), cast })) {
+      delete manifest[k];
+      n++;
+    }
+  }
+  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  console.log(`${n} réplique(s) périmée(s) retirée(s) du manifeste.`);
+  process.exit(0);
+}
+
 let tts = new MsEdgeTTS();
 const tmp = join(tmpdir(), 'shine-voices');
 let made = 0;
