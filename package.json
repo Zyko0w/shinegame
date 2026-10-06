@@ -1,8 +1,8 @@
 {
-  "name": "shine",
+  "name": "amnesia",
   "version": "0.1.0",
   "private": true,
-  "description": "Shine — puzzle-diorama cosmique (prototype visuel)",
+  "description": "Amnesia — puzzle-diorama cosmique",
   "type": "module",
   "scripts": {
     "dev": "vite",

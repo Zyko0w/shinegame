@@ -2,6 +2,7 @@ import { progress } from '../core/progress.js';
 import { islandSVG } from './islandPreview.js';
 import { paletteOf } from '../game/moods.js';
 import { CURIOS, GEMS, countObjects } from '../game/tiles.js';
+import { Docs } from './docs.js';
 
 // Couche DOM : écrans, menu d'accueil, HUD, toasts, bannières. Aucune logique
 // de jeu ici, uniquement de l'affichage piloté par main.js via des callbacks.
@@ -108,6 +109,7 @@ export class UI {
     on('btn-credits-close', () => this.closeCredits());
 
     this.initMenu();
+    this.docs = new Docs(levels, { onClose: () => $('menu-docs').focus({ preventScroll: true }), hoverSound: () => this.h.hoverSound?.() });
 
     // Petit son au survol des boutons
     document.querySelectorAll('#ui button').forEach((b) => b.addEventListener('pointerenter', () => this.h.hoverSound?.()));
@@ -121,6 +123,7 @@ export class UI {
       'menu-new': () => this.confirmNewGame(),
       'menu-levels': () => this.openLevels(),
       'menu-settings': () => this.h.openSettings(),
+      'menu-docs': () => this.docs.open(),
       'menu-credits': () => this.openCredits(),
     };
     this.menuItems = [...document.querySelectorAll('#main-menu .menu-item')];
@@ -337,11 +340,15 @@ export class UI {
       this.closeCredits();
       return true;
     }
+    if (this.docs.isOpen) {
+      this.docs.close();
+      return true;
+    }
     return false;
   }
 
   modalOpen() {
-    return ['levels', 'credits', 'settings'].some((id) => $(id).classList.contains('is-visible'));
+    return ['levels', 'credits', 'settings', 'docs'].some((id) => $(id).classList.contains('is-visible'));
   }
 
   /* ───────────── Écrans ───────────── */

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#07060f" />
-    <title>Shine</title>
+    <title>Amnesia</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -24,8 +24,8 @@
             <g class="astro-inner"><circle cx="200" cy="200" r="140" stroke-dasharray="2 6"/><circle cx="200" cy="200" r="96"/><path d="M200 60 L200 340 M60 200 L340 200"/><ellipse cx="200" cy="200" rx="140" ry="52"/><circle cx="200" cy="60" r="3.5" class="astro-star"/><circle cx="296" cy="200" r="2.5" class="astro-star"/><circle cx="130" cy="270" r="2" class="astro-star"/></g>
           </svg>
           <p class="eyebrow"><span class="dot"></span>l’archipel des émotions</p>
-          <h1 id="logo" class="logo" aria-label="Shine">
-            <span>S</span><span>H</span><span>I</span><span>N</span><span>E</span>
+          <h1 id="logo" class="logo" aria-label="Amnesia">
+            <span>A</span><span>M</span><span>N</span><span>E</span><span>S</span><span>I</span><span>A</span>
             <svg class="logo-spark" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 0 L14 10 L24 12 L14 14 L12 24 L10 14 L0 12 L10 10 Z" />
             </svg>
@@ -56,6 +56,11 @@
               <span class="menu-mark" aria-hidden="true"></span>
               <span class="menu-label">Paramètres</span>
               
+            </button></li>
+            <li><button class="menu-item" id="menu-docs" type="button">
+              <span class="menu-mark" aria-hidden="true"></span>
+              <span class="menu-label">Documentation</span>
+              <span class="menu-sub">histoire · pièges · esprits</span>
             </button></li>
             <li><button class="menu-item" id="menu-credits" type="button">
               <span class="menu-mark" aria-hidden="true"></span>
@@ -266,15 +271,41 @@
       </section>
 
       <!-- ───────────── Crédits ───────────── -->
+      <section id="docs" class="screen modal" role="dialog" aria-modal="true" aria-labelledby="docs-title" aria-hidden="true">
+        <div class="card card-settings card-docs">
+          <header class="settings-head">
+            <div>
+              <p class="eyebrow gold"><span class="dot"></span>le carnet de Lumi</p>
+              <h2 id="docs-title" class="card-title">Documentation</h2>
+            </div>
+            <button class="icon-btn" id="btn-docs-close" type="button" aria-label="Fermer la documentation">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </header>
+          <div class="tabs" role="tablist" aria-label="Sections">
+            <button class="tab is-active" role="tab" id="doctab-lore" data-tab="lore" aria-controls="docpanel-lore">L’histoire</button>
+            <button class="tab" role="tab" id="doctab-traps" data-tab="traps" aria-controls="docpanel-traps" tabindex="-1">Pièges</button>
+            <button class="tab" role="tab" id="doctab-spirits" data-tab="spirits" aria-controls="docpanel-spirits" tabindex="-1">Esprits</button>
+            <span class="tab-ink" aria-hidden="true"></span>
+          </div>
+          <div class="panels">
+            <div class="panel doc-prose" role="tabpanel" id="docpanel-lore" aria-labelledby="doctab-lore"><div id="doc-lore"></div></div>
+            <div class="panel" role="tabpanel" id="docpanel-traps" aria-labelledby="doctab-traps" hidden><div class="doc-grid" id="doc-traps"></div></div>
+            <div class="panel" role="tabpanel" id="docpanel-spirits" aria-labelledby="doctab-spirits" hidden><div class="doc-grid" id="doc-spirits"></div></div>
+          </div>
+        </div>
+      </section>
+
       <section id="credits" class="screen modal" role="dialog" aria-modal="true" aria-labelledby="credits-title">
         <div class="card card-credits">
           <p class="eyebrow gold"><span class="dot"></span>merci d'avoir joué</p>
           <h2 id="credits-title" class="card-title">Crédits</h2>
           <dl class="credits">
-            <div><dt>Conception & développement</dt><dd>Projet MMI 3 — Shine</dd></div>
+            <div><dt>Développement de jeu</dt><dd>zzyk0</dd></div>
             <div><dt>Moteur 3D</dt><dd>three.js</dd></div>
             <div><dt>Post-traitement</dt><dd>pmndrs/postprocessing · N8AO</dd></div>
             <div><dt>Son</dt><dd>Synthèse WebAudio, générée en temps réel</dd></div>
+            <div><dt>Voix</dt><dd>ElevenLabs</dd></div>
             <div><dt>Inspiration</dt><dd>Captain Toad: Treasure Tracker</dd></div>
           </dl>
           <button class="btn btn-primary btn-small" id="btn-credits-close" type="button"><span>Retour</span></button>

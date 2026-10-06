@@ -242,6 +242,8 @@ kbd {
 .logo span:nth-child(3) { animation-delay: 0.29s; }
 .logo span:nth-child(4) { animation-delay: 0.36s; }
 .logo span:nth-child(5) { animation-delay: 0.43s; }
+.logo span:nth-child(6) { animation-delay: 0.5s; }
+.logo span:nth-child(7) { animation-delay: 0.57s; }
 
 .logo-spark {
   position: absolute;
@@ -1129,7 +1131,7 @@ body.pad-nav #scene { cursor: none; }
   font-weight: 340;
   font-style: italic;
   font-variation-settings: 'opsz' 144;
-  font-size: clamp(84px, 12vw, 176px);
+  font-size: clamp(60px, 9vw, 136px);
   line-height: 0.9;
   letter-spacing: -0.03em;
 }

@@ -1416,7 +1416,7 @@ const pointer = new PointerInput({
 // Fenêtre ou menu actif (pour la manette) ; null = en jeu
 function activeContainer() {
   if (settingsPanel.isOpen) return document.getElementById('settings');
-  for (const id of ['wish', 'levels', 'credits', 'complete', 'pause']) {
+  for (const id of ['wish', 'levels', 'docs', 'credits', 'complete', 'pause']) {
     const el = document.getElementById(id);
     if (el.classList.contains('is-visible')) return el;
   }

@@ -1,0 +1,113 @@
+/* ───────────────── Documentation (menu d'accueil) ───────────────── */
+
+#docs { z-index: 3; }
+.card-docs { width: min(820px, 100%); }
+.doc-prose { font-size: 15px; line-height: 1.65; color: var(--ink-dim); }
+.doc-prose p { margin: 12px 0; }
+.doc-prose strong { color: var(--ink); font-weight: 600; }
+.doc-prose .doc-lead { font-family: 'Fraunces', serif; font-style: italic; font-size: 19px; line-height: 1.5; color: var(--ink); }
+.doc-sub { margin: 22px 0 8px; font-family: var(--f-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faint); }
+.doc-islands { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.doc-islands li { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(0, 0, 0, 0.15); }
+.doc-islands strong { display: block; font-size: 14px; }
+.doc-islands em { display: block; font-style: normal; font-size: 12px; color: var(--mood); }
+.doc-num { font-family: var(--f-mono); font-size: 12px; color: var(--mood); }
+
+.doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; padding: 12px 0 4px; }
+.doc-card { display: grid; grid-template-columns: 132px 1fr; gap: 14px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: rgba(0, 0, 0, 0.18); }
+.doc-card h3 { font-family: var(--f-display); font-size: 17px; letter-spacing: -0.01em; }
+.doc-card p { margin-top: 4px; font-size: 13px; line-height: 1.5; color: var(--ink-dim); }
+.doc-card .doc-where { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.06em; color: var(--gold); }
+.doc-card .doc-kicker { margin: 0 0 2px; font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+.doc-card .doc-quote { font-family: 'Fraunces', serif; font-style: italic; color: var(--ink); }
+.doc-art { aspect-ratio: 160 / 110; border-radius: 12px; background: radial-gradient(circle at 50% 40%, rgba(161, 132, 255, 0.16), rgba(0, 0, 0, 0.25)); overflow: hidden; }
+.doc-art svg { width: 100%; height: 100%; display: block; }
+.doc-spirit .doc-art { display: grid; place-items: center; }
+.doc-spirit .doc-art svg { width: 62%; height: 90%; overflow: visible; }
+.doc-spirit:not(.is-locked) .doc-art svg { filter: drop-shadow(0 0 10px var(--c)); }
+.doc-spirit.is-locked { opacity: 0.55; }
+.doc-spirit.is-locked h3 { color: var(--ink-faint); }
+
+@media (max-width: 720px) {
+  .doc-grid { grid-template-columns: 1fr; }
+  .doc-card { grid-template-columns: 104px 1fr; }
+}
+
+/* ── Aperçus animés des pièges (boucles) ── */
+
+.doc-art g, .doc-art path, .doc-art rect, .doc-art circle { transform-box: fill-box; transform-origin: center; }
+.doc-art .d-lumi { transform-box: view-box; transform-origin: 0 0; }
+
+/* lave : la croûte s'embrase, Lumi passe pendant qu'elle est froide */
+.d-lava path:last-child { animation: d-lava 4.6s infinite; }
+.d-lava2 path:last-child { animation-delay: -0.15s; }
+@keyframes d-lava { 0%, 55% { fill: #2a0e10; } 70% { fill: #8a2a10; } 75%, 98% { fill: #ff8a2a; } 100% { fill: #2a0e10; } }
+.d-cross { animation: d-cross 4.6s infinite; }
+@keyframes d-cross { 0%, 8% { transform: translate(0, 0); } 45%, 100% { transform: translate(66px, 0); } }
+
+/* éolienne : les pales tournent, la bourrasque emporte Lumi dans le vide */
+.d-blades { animation: d-spin 0.4s linear infinite; }
+@keyframes d-spin { to { transform: rotate(360deg); } }
+.d-gust { animation: d-gust 0.8s linear infinite; }
+@keyframes d-gust { from { transform: translateX(-6px); opacity: 0; } 30% { opacity: 0.8; } to { transform: translateX(26px); opacity: 0; } }
+.d-blown { animation: d-blown 3.2s infinite; }
+@keyframes d-blown { 0%, 20% { transform: translate(0, 0); opacity: 1; } 55% { transform: translate(44px, 0); opacity: 1; } 75% { transform: translate(58px, 34px); opacity: 0; } 100% { transform: translate(0, 0); opacity: 0; } }
+
+/* fosse : le bloc glisse et comble le trou, Lumi le suit */
+.d-block { animation: d-block 4s infinite; }
+@keyframes d-block { 0%, 15% { transform: translate(0, 0); } 45% { transform: translate(22px, 11px); } 60%, 100% { transform: translate(22px, 27px); } }
+.d-pusher { animation: d-pusher 4s infinite; }
+@keyframes d-pusher { 0%, 15% { transform: translate(0, 0); } 45%, 62% { transform: translate(22px, 11px); } 95%, 100% { transform: translate(66px, 33px); } }
+
+/* dalles fragiles : chacune tombe juste après le passage de Lumi */
+.d-hurry { animation: d-hurry 4s infinite; }
+@keyframes d-hurry { 0%, 10% { transform: translate(0, 0); } 70%, 100% { transform: translate(88px, 0); } }
+.d-fragile { animation: d-crumble 4s infinite; }
+.d-f1 { animation-delay: 0.6s; }
+.d-f2 { animation-delay: 1.3s; }
+.d-f3 { animation-delay: 2s; }
+@keyframes d-crumble { 0%, 25% { transform: translateY(0); opacity: 1; } 45% { transform: translateY(40px); opacity: 0; } 92% { transform: translateY(40px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+
+/* plaque : le bloc s'y pose, les dalles bleues apparaissent, Lumi traverse */
+.d-block2 { animation: d-drop 4.5s infinite; }
+@keyframes d-drop { 0% { transform: translateY(-30px); opacity: 0; } 15%, 92% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(0); opacity: 0; } }
+.d-plate { animation: d-plate 4.5s infinite; }
+@keyframes d-plate { 0%, 14% { fill: #2a6a80; } 18%, 95% { fill: #8ff4ff; } 100% { fill: #2a6a80; } }
+.d-gate { animation: d-gate 4.5s infinite; }
+@keyframes d-gate { 0%, 18% { opacity: 0; transform: scale(0.4); } 28%, 95% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+.d-gatewalk { animation: d-gatewalk 4.5s infinite; }
+@keyframes d-gatewalk { 0%, 30% { transform: translate(0, 0); } 80%, 100% { transform: translate(66px, 0); } }
+
+/* rayons : le miroir pivote, le rayon atteint le récepteur qui s'allume */
+.d-mirror { animation: d-mirror 4s infinite; }
+@keyframes d-mirror { 0%, 30% { transform: rotate(-45deg); } 45%, 100% { transform: rotate(45deg); } }
+.d-beam2 { animation: d-beam2 4s infinite; }
+@keyframes d-beam2 { 0%, 45% { opacity: 0; } 55%, 100% { opacity: 0.9; } }
+.d-receptor { animation: d-receptor 4s infinite; }
+@keyframes d-receptor { 0%, 52% { fill: #6a6480; } 62%, 100% { fill: #ffd47a; } }
+
+/* ── Esprits : chacun bouge selon son émotion ── */
+
+.doc-spirit svg .d-body { transform-box: view-box; transform-origin: 30px 60px; }
+.m-bounce .d-body { animation: m-bounce 1.8s ease-in-out infinite; }
+@keyframes m-bounce { 50% { transform: translateY(-5px) scale(1.03, 0.97); } }
+.m-droop .d-body { animation: m-droop 3.2s ease-in-out infinite; }
+@keyframes m-droop { 50% { transform: translateY(3px) scaleY(0.92); } }
+.m-drift .d-body { animation: m-drift 4s ease-in-out infinite; }
+@keyframes m-drift { 33% { transform: translateX(-4px); } 66% { transform: translateX(4px); } }
+.m-shake .d-body { animation: m-shake 0.25s linear infinite; }
+@keyframes m-shake { 25% { transform: translateX(-1.2px); } 75% { transform: translateX(1.2px); } }
+.m-sulk .d-body { animation: m-sulk 3s ease-in-out infinite; }
+@keyframes m-sulk { 50% { transform: rotate(-6deg); } }
+.m-flare .d-body { animation: m-flare 0.6s ease-in-out infinite; }
+@keyframes m-flare { 50% { transform: scale(1.08, 1.14); } }
+.m-glance .d-body { animation: m-glance 2.6s ease-in-out infinite; }
+@keyframes m-glance { 20%, 40% { transform: translateX(-3px) rotate(-4deg); } 60%, 80% { transform: translateX(3px) rotate(4deg); } }
+.m-hide .d-body { animation: m-hide 3.4s ease-in-out infinite; }
+@keyframes m-hide { 40%, 60% { transform: scale(0.82) translateY(4px); opacity: 0.7; } }
+.m-glow .d-body { animation: m-glow 2.4s ease-in-out infinite; }
+@keyframes m-glow { 50% { transform: translateY(-3px) scale(1.04); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .doc-art *, .doc-spirit svg .d-body { animation: none !important; }
+}
