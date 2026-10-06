@@ -478,6 +478,37 @@
         <p class="awake-title" style="--d: 4.6s">Elle ouvre les yeux.</p>
         <p class="awake-hint" style="--d: 7s">merci, petite flamme</p>
       </div>
+      <!-- Cinématique d'ouverture : quelqu'un dort ; on plonge dans son sommeil -->
+      <section id="intro" class="intro" aria-hidden="true" aria-label="Prologue">
+        <div class="intro-glow" aria-hidden="true"></div>
+        <div class="intro-stage">
+        <svg class="intro-eye" viewBox="0 0 400 200" aria-hidden="true">
+          <defs>
+            <radialGradient id="iris" cx="50%" cy="50%" r="50%">
+              <stop offset="0" stop-color="#fff6dc" />
+              <stop offset="0.35" stop-color="#ffd47a" />
+              <stop offset="1" stop-color="#3a2a5a" />
+            </radialGradient>
+            <clipPath id="eye-clip"><path d="M40 100 Q200 0 360 100 Q200 200 40 100 Z" /></clipPath>
+          </defs>
+          <!-- l'œil qui tente de s'ouvrir : une fente qui s'écarte à peine -->
+          <g class="eye-slit" clip-path="url(#eye-clip)">
+            <path d="M40 100 Q200 0 360 100 Q200 200 40 100 Z" fill="#120d24" />
+            <circle cx="200" cy="100" r="44" fill="url(#iris)" />
+            <circle cx="200" cy="100" r="16" fill="#07060f" />
+            <circle cx="214" cy="86" r="6" fill="#fff" opacity=".8" />
+          </g>
+          <!-- paupière fermée et cils -->
+          <g class="eye-lid">
+            <path d="M40 100 Q200 170 360 100" />
+            <path d="M92 124 l-12 22 M132 138 l-7 25 M176 145 l-2 26 M224 145 l2 26 M268 138 l7 25 M308 124 l12 22" />
+          </g>
+        </svg>
+        <div class="intro-spark" aria-hidden="true"></div>
+        </div>
+        <p class="intro-text" id="intro-text" aria-live="polite"></p>
+        <span class="intro-skip">Échap · passer</span>
+      </section>
       <div id="fade" class="fade"></div>
     </div>
 

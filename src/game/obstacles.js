@@ -197,10 +197,13 @@ export function createObstacles(ctx) {
   // Quitter une dalle fragile la fait céder ; arriver dessus la fait craquer
   function stepFragile(tile) {
     const lv = level();
-    if (lastTile && lastTile !== tile && lastTile.fragile && !lastTile.crumbled) {
+    if (lastTile && lastTile !== tile && lastTile.fragile && !lastTile.crumbled && !lastTile.doomed) {
       const left = lastTile;
+      // la dalle est condamnée tout de suite : plus aucun chemin ne peut y revenir
+      // pendant qu'elle s'effondre (sinon Lumi tombait dans le trou)
+      lv.doomFragile(left);
       setTimeout(() => {
-        if (game.level !== lv || !lv.crumble(left)) return;
+        if (game.level !== lv || !left.doomed || !lv.crumble(left)) return;
         sfx.whoosh(-4);
         particles.emit(lv.worldOf(left, tmp), 0xb8a890, 14, { speed: 1.2, up: 0.6, life: 0.8, size: 4, gravity: -4 });
       }, 180);
@@ -300,7 +303,7 @@ export function createObstacles(ctx) {
     particles.ring(tmp, 0xffc06a, 26, 2.2, { size: 4, life: 0.7 });
     sfx.land(1);
     const where = at.obj === 'L' ? 'à la lanterne' : at === lv.start ? 'au départ' : 'au point de reprise';
-    ui.toast(`${message} Retour ${where}.`, { color: 'var(--rose)', duration: 2600 });
+    ui.toast(`${message} Retour ${where}.`, { kind: 'warn', title: 'Oups !', duration: 3200 });
     ctx.refreshPointer();
   }
 

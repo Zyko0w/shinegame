@@ -14,8 +14,19 @@ const GEM_SVG = `
   </svg>`;
 const LOCK_SVG = '<svg class="level-lock" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>';
 
+// Messages d'information : icône, couleur et titre par défaut selon le genre
+const TOAST_ICONS = {
+  hint: '<svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4z" /><path d="M18.5 16.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" /></svg>',
+  warn: '<svg viewBox="0 0 24 24"><path d="M12 3.5l9 16H3z" /><path d="M12 10v4.5M12 17.2v.1" /></svg>',
+  info: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5.5M12 7.8v.1" /></svg>',
+  gem: '<svg viewBox="0 0 24 24"><path d="M12 3l8 7-8 11-8-11z" /><path d="M4 10h16M9 10l3-7 3 7-3 11z" /></svg>',
+  curio: '<svg viewBox="0 0 24 24"><path d="M5 4.5h9.5a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3z" /><path d="M5 17a3 3 0 0 1 3-3h9.5M9 8h5" /></svg>',
+};
+const TOAST_COLORS = { hint: 'var(--gold)', warn: 'var(--rose)', info: 'var(--cyan)', gem: 'var(--cyan)', curio: 'var(--gold)' };
+const TOAST_TITLES = { hint: 'Indice', warn: 'Attention', info: 'Info', gem: 'Progression', curio: 'Curiosité' };
+
 const $ = (id) => document.getElementById(id);
-const pad = (n) => String(n).padStart(2, '0');
+const pad =(n) => String(n).padStart(2, '0');
 
 // 83.4 → « 1:23 »
 export function fmtTime(sec) {
@@ -477,14 +488,22 @@ export class UI {
     };
   }
 
-  toast(text, { color, duration = 3800 } = {}) {
+  // Message d'information : carte centrée en haut, icône selon le genre
+  // (hint, warn, info, gem, curio), petit titre, barre de temps restant.
+  // Sans durée imposée, elle dépend de la longueur du texte (temps de lecture).
+  toast(text, { color, duration, title, kind = 'hint' } = {}) {
     const t = this.el.toast;
     clearTimeout(this.toastTimer);
-    t.style.setProperty('--toast-color', color || '');
+    const ms = duration ?? Math.min(9000, Math.max(3200, 1800 + text.length * 48));
     const show = () => {
-      t.textContent = text;
+      t.style.setProperty('--toast-color', color || TOAST_COLORS[kind] || '');
+      t.style.setProperty('--toast-dur', `${ms}ms`);
+      t.dataset.kind = kind;
+      t.innerHTML = `<span class="toast-ico">${TOAST_ICONS[kind] ?? TOAST_ICONS.hint}</span><span class="toast-body"><span class="toast-title"></span><span class="toast-text"></span></span><span class="toast-bar"></span>`;
+      t.querySelector('.toast-title').textContent = title ?? TOAST_TITLES[kind] ?? '';
+      t.querySelector('.toast-text').textContent = text;
       t.classList.add('is-visible');
-      this.toastTimer = setTimeout(() => t.classList.remove('is-visible'), duration);
+      this.toastTimer = setTimeout(() => t.classList.remove('is-visible'), ms);
     };
     if (t.classList.contains('is-visible')) {
       t.classList.remove('is-visible');

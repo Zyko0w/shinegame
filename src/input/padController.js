@@ -19,11 +19,11 @@ export class PadController {
     this.restartHold = 0;
     this.pad.onConnect = (g) => {
       c.settingsPanel.setPadStatus(g.id);
-      c.ui.toast('Manette connectée', { color: 'var(--cyan)', duration: 2400 });
+      c.ui.toast('Manette connectée', { kind: 'info', title: 'Manette', duration: 2400 });
     };
     this.pad.onDisconnect = () => {
       c.settingsPanel.setPadStatus(null);
-      c.ui.toast('Manette déconnectée', { color: 'var(--rose)', duration: 2400 });
+      c.ui.toast('Manette déconnectée', { kind: 'warn', title: 'Manette', duration: 2400 });
     };
     this.pad.onNav = (dir) => this.nav(dir);
     this.pad.onButton = (b) => this.button(b);
@@ -102,7 +102,7 @@ export class PadController {
     else if (b === BTN.LB) actions.rotate(-1);
     else if (b === BTN.RB) actions.rotate(1);
     else if (b === BTN.Y) actions.recenter();
-    else if (b === BTN.X) ui.toast('Maintiens X pour recommencer le niveau', { duration: 1600 });
+    else if (b === BTN.X) ui.toast('Maintiens X pour recommencer le niveau', { kind: 'info', title: 'Recommencer', duration: 1800 });
   }
 
   // Direction de déplacement [avant, côté] depuis le stick gauche / la croix

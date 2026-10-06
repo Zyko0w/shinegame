@@ -454,7 +454,11 @@ export class Player {
 
   nextSegment() {
     const next = this.queue.shift();
-    if (!next) {
+    // case disparue depuis le calcul du chemin (dalle effondrée, porte refermée…) :
+    // Lumi s'arrête au bord au lieu de marcher dans le vide (le vent, lui, verrouille Lumi)
+    const gone = next && !this.locked && this.level && !this.level.isWalkable(next);
+    if (!next || gone) {
+      this.queue.length = 0;
       this.moving = false;
       return;
     }

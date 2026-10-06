@@ -434,5 +434,29 @@
   "wish/qu-on-la-regarde-sans-la-juger": {
     "file": "voices/wish/qu-on-la-regarde-sans-la-juger.mp3",
     "hash": "27b0e9899bea"
+  },
+  "prologue/0": {
+    "file": "voices/prologue/line-0.mp3",
+    "hash": "3eccf8f22d95"
+  },
+  "prologue/1": {
+    "file": "voices/prologue/line-1.mp3",
+    "hash": "526e55608890"
+  },
+  "prologue/2": {
+    "file": "voices/prologue/line-2.mp3",
+    "hash": "f5963ad6fcef"
+  },
+  "prologue/3": {
+    "file": "voices/prologue/line-3.mp3",
+    "hash": "d245f65d0dd4"
+  },
+  "prologue/4": {
+    "file": "voices/prologue/line-4.mp3",
+    "hash": "4493b4eabccf"
+  },
+  "prologue/wake0": {
+    "file": "voices/prologue/wake-0.mp3",
+    "hash": "96ea9e02388d"
   }
 }

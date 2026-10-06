@@ -11,7 +11,8 @@
 //   npm run voices -- --check → liste les répliques sans enregistrement (hors ligne)
 //
 // Répliques : esprits (dialogues, rappels, citation de fin), curiosités dites à
-// voix haute (maisons, longues-vues, cloches, fontaines) et vœux proposés.
+// voix haute (maisons, longues-vues, cloches, fontaines), vœux proposés et
+// cinématique d'ouverture (prologue).
 // Sortie : public/voices/<niveau>/<personnage>-<l|r><n>.mp3, outro.mp3,
 //          <niveau>/curio-<face>-<x>-<z>-<n>.mp3, wish/<vœu>.mp3
 //          public/voices/manifest.json  (clé de réplique → fichier + empreinte)
@@ -23,7 +24,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
-import { LEVELS } from '../src/game/levels.js';
+import { LEVELS, PROLOGUE } from '../src/game/levels.js';
 import { CURIOS } from '../src/game/tiles.js';
 import { curioSpeech, curioKey, wishKey, DEFAULT_WISHES } from '../src/game/curioTexts.js';
 import { ELEVEN_MODEL, elevenKey, elevenSpeak, isFatal } from './eleven.mjs';
@@ -112,6 +113,9 @@ function collectLines() {
     }
   }
   for (const w of wishes) out.push({ key: wishKey(w), who: 'lumi', text: w, file: `${wishKey(w)}.mp3` });
+  // cinématique d'ouverture : narrateur, puis premiers mots de Lumi
+  PROLOGUE.lines.forEach((l, i) => out.push({ key: `prologue/${i}`, who: l.who, text: l.text, file: `prologue/line-${i}.mp3` }));
+  PROLOGUE.wake.forEach((l, i) => out.push({ key: `prologue/wake${i}`, who: l.who, text: l.text, file: `prologue/wake-${i}.mp3` }));
   return out;
 }
 

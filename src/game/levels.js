@@ -53,6 +53,20 @@
 // Voix de Lumi (les personnages ont la leur)
 export const LUMI_VOICE = { name: 'Lumi', color: '#5effd8', pitch: 1.6, rate: 1.08, voiceIndex: 1 };
 
+// Cinématique d'ouverture (nouvelle partie) : quelqu'un dort, on plonge dans
+// son sommeil, Lumi s'allume. `beat` : effet visuel du plan (main.js).
+// Clés de voix : prologue/<n> (narrateur) et prologue/wake<n> (Lumi).
+export const PROLOGUE = {
+  lines: [
+    { who: 'souvenir', text: 'Quelque part, quelqu’un dort.' },
+    { who: 'souvenir', text: 'Depuis des jours. Des semaines, peut-être. Plus personne n’arrive à la réveiller.' },
+    { who: 'souvenir', text: 'Parfois, ses paupières frémissent… mais elles ne s’ouvrent pas.', beat: 'flutter' },
+    { who: 'souvenir', text: 'Elle s’est perdue tout au fond d’elle-même, entre ses propres sentiments.' },
+    { who: 'souvenir', text: 'Pourtant, là-dedans, une toute petite flamme refuse de s’éteindre.', beat: 'dive' },
+  ],
+  wake: [{ who: 'lumi', text: 'Hein… ? Où suis-je ? Il fait si sombre… Mais moi, je brille encore.' }],
+};
+
 export const LEVELS = [
   {
     id: 'orion',

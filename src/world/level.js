@@ -1218,10 +1218,18 @@ export class Level {
     tile.slab.userData.crackMat.opacity = on ? 0.9 : 0.25;
   }
 
+  // Lumi vient de quitter la dalle : elle n'est plus praticable (elle cède juste après)
+  doomFragile(tile) {
+    tile.doomed = true;
+    tile.active = false;
+    this.updatePick(tile);
+  }
+
   // La dalle cède et tombe dans le vide
   crumble(tile) {
     if (!tile?.fragile || tile.crumbled) return false;
     tile.crumbled = true;
+    tile.doomed = false;
     tile.active = false;
     this.updatePick(tile);
     const slab = tile.slab;
@@ -1243,6 +1251,12 @@ export class Level {
   // Reprise après une chute : les dalles se reforment
   restoreFragile() {
     for (const t of this.fragiles) {
+      if (t.doomed) {
+        // condamnée mais pas encore tombée : simplement de nouveau praticable
+        t.doomed = false;
+        t.active = true;
+        this.updatePick(t);
+      }
       if (!t.crumbled) continue;
       t.crumbled = false;
       t.active = true;

@@ -31,7 +31,7 @@ import { Voice } from './audio/voice.js';
 import { Dialogue } from './ui/dialogue.js';
 import { Tutorials } from './ui/tutorial.js';
 import { EMOTIONS } from './world/npc.js';
-import { LUMI_VOICE } from './game/levels.js';
+import { LUMI_VOICE, PROLOGUE } from './game/levels.js';
 import { CURIO_INFO, curioText, telescopeEyepiece } from './world/curios.js';
 import { DEFAULT_WISHES, SKY_FALLBACK, wishKey } from './game/curioTexts.js';
 import { createSkyView } from './world/celestial.js';
@@ -78,7 +78,7 @@ sfx.onInit = () => {
 /* ═════════════ État du jeu ═════════════ */
 
 const game = {
-  state: 'boot', // title | intro | play | paused | complete | transition
+  state: 'boot', // title | prologue | intro | play | dialogue | paused | complete | transition
   index: 0,
   level: null,
   gems: 0,
@@ -350,6 +350,8 @@ function startGame() {
   if (game.state !== 'title') return;
   sfx.init();
   sfx.start();
+  // toute première partie : cinématique d'ouverture avant le premier pas
+  if (game.index === 0 && !progress.data.prologue) return playPrologue();
   game.state = 'intro';
   ui.showTitle(false);
   rig.animateShift(0, 1.8);
@@ -398,6 +400,123 @@ function setPaused(p) {
     rig.setInteractive(true);
     ui.showPause(false);
   }
+}
+
+/* ═════════════ Prologue ═════════════ */
+
+// Écran noir : quelqu'un dort (œil fermé, respiration, narrateur) ; les
+// paupières tentent de s'ouvrir ; on plonge dans son sommeil et une petite
+// flamme s'allume : Lumi apparaît sur l'île, puis la caméra recule.
+// Échap / clic / B : passer (on saute directement à l'apparition de Lumi).
+const introEl = document.getElementById('intro');
+const introText = document.getElementById('intro-text');
+const prologue = { active: false, skipped: false, wakers: new Set() };
+
+// Attente interrompue net par « passer »
+function introWait(ms) {
+  if (prologue.skipped) return Promise.resolve();
+  return new Promise((r) => {
+    const wake = () => {
+      clearTimeout(id);
+      prologue.wakers.delete(wake);
+      r();
+    };
+    const id = setTimeout(wake, ms);
+    prologue.wakers.add(wake);
+  });
+}
+
+function skipPrologue() {
+  if (!prologue.active || prologue.skipped) return;
+  prologue.skipped = true;
+  voice.stop();
+  for (const wake of [...prologue.wakers]) wake();
+}
+introEl.addEventListener('click', skipPrologue);
+
+// Une phrase du narrateur : tenue au moins `hold` ms, et jusqu'à la fin de sa voix
+async function narrate(line, key, hold) {
+  introText.textContent = line.text;
+  introText.classList.add('show');
+  const speaker = { name: 'Narrateur', color: '#ffd47a', pitch: 0.95, rate: 0.95, voiceIndex: 0 };
+  // seulement une voix enregistrée : un babillage casserait l'ambiance
+  const voiced = voice.enabled && voice.hasClip(key) && new Promise((r) => voice.say(line.text, speaker, r, key));
+  await Promise.all([introWait(hold), voiced && Promise.race([voiced, introWait(15000)])]);
+  introText.classList.remove('show');
+  await introWait(900);
+}
+
+async function playPrologue() {
+  const level = game.level;
+  game.state = 'prologue';
+  voice.preload('prologue/'); // voix du narrateur, chargées pendant le fondu au noir
+  prologue.active = true;
+  prologue.skipped = false;
+  rig.setInteractive(false);
+  ui.showTitle(false);
+  sfx.duckMusic(true);
+  introEl.classList.remove('is-out', 'flutter', 'dive');
+  introEl.classList.add('is-on');
+  introEl.setAttribute('aria-hidden', 'false');
+  const breathing = setInterval(() => sfx.breath(), 4200);
+  sfx.breath();
+  await introWait(1300);
+
+  // derrière le noir : caméra tout près du point de départ, Lumi encore éteint
+  rig.setShift(0);
+  const home = player.root.position.clone();
+  rig.target.set(home.x, home.y + 0.45, home.z);
+  rig.set(2.6, 1.22, rig.view.theta);
+  player.vanish();
+
+  for (const [i, line] of PROLOGUE.lines.entries()) {
+    if (prologue.skipped) break;
+    if (line.beat) {
+      introEl.classList.remove('flutter');
+      void introEl.offsetWidth; // relance l'animation
+      introEl.classList.add(line.beat);
+    }
+    if (line.beat === 'dive') sfx.tone({ freq: 196, type: 'sine', dur: 3.2, vol: 0.05, glide: 2, send: 0.9, attack: 1.2 });
+    await narrate(line, `prologue/${i}`, 2600 + line.text.length * 38);
+  }
+  clearInterval(breathing);
+  introText.classList.remove('show');
+  progress.data.prologue = true;
+  progress.save();
+  if (game.level !== level) return;
+
+  // la flamme s'allume sur l'île
+  introEl.classList.add('is-out');
+  introEl.setAttribute('aria-hidden', 'true');
+  sfx.duckMusic(false);
+  dialogue.setCinema(true);
+  prologue.skipped = false; // la suite se joue normalement (le dialogue se passe à part)
+  await introWait(900);
+  player.appear();
+  player.drop(0.5);
+  const p = player.root.position.clone();
+  p.y += 0.5;
+  sfx.star();
+  particles.ring(p, 0x5effd8, 30, 2.4, { size: 5, life: 0.9 });
+  particles.emit(p, 0xbfffee, 36, { speed: 1.6, up: 2.2, life: 1.2, size: 5, gravity: -1.5 });
+  rig.animateTo({ r: 3.2, phi: 1.18, theta: rig.view.theta, target: p, duration: 1.6 });
+  await introWait(1400);
+  prologue.active = false;
+  introEl.classList.remove('is-on', 'is-out', 'flutter', 'dive');
+  if (game.level !== level) return;
+  game.state = 'dialogue'; // Espace / Échap / A / B pilotent la réplique de Lumi
+  await dialogue.play(
+    PROLOGUE.wake.map((l, i) => ({ ...l, key: `prologue/wake${i}` })),
+    { lumi: LUMI_VOICE },
+    (who, on) => who === 'lumi' && (player.talking = on),
+  );
+  player.talking = false;
+  dialogue.setCinema(false);
+  if (game.level !== level) return;
+  // recul jusqu'au cadrage de jeu, puis l'aventure commence (Orion engage la conversation)
+  game.state = 'intro';
+  const v = rig.view;
+  rig.animateTo({ r: v.radius, phi: v.phi, theta: v.theta, target: level.focus, duration: 2.4, onComplete: enterPlay });
 }
 
 /* ═════════════ Gameplay ═════════════ */
@@ -509,7 +628,7 @@ const tutorials = new Tutorials({
 });
 document.getElementById('btn-tuto-reset').addEventListener('click', () => {
   tutorials.reset();
-  ui.toast('Les fiches des mécaniques réapparaîtront.', { duration: 2400 });
+  ui.toast('Les fiches des mécaniques réapparaîtront.', { kind: 'info', title: 'Tutoriels', duration: 2600 });
 });
 let pendingTalk = null; // personnage vers lequel Lumi marche pour lui parler
 
@@ -643,7 +762,7 @@ async function useCurio(curio) {
       break;
   }
   if (curio.type === 'H' || Array.isArray(text)) return visitCurio(curio, Array.isArray(text) ? text : [{ who: 'lumi', text }]);
-  ui.toast(text, { color: 'var(--gold)', duration: Math.max(3800, text.length * 55) });
+  ui.toast(text, { kind: 'curio', title: curio.name.replace(/^./, (c) => c.toUpperCase()) });
 }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -1044,11 +1163,26 @@ function setTalkPrompt(target) {
 talkPrompt.addEventListener('click', interact);
 
 const shown = new Set(); // bulles d'aide déjà affichées pour ce niveau
+// petit titre des bulles d'aide selon l'événement
+const HINT_TITLES = {
+  button: 'Interrupteur',
+  filled: 'Passage ouvert',
+  beam: 'Rayon',
+  plate: 'Plaque de pression',
+  platform: 'Plateforme',
+  call: 'Plateforme',
+  flip: 'Face cachée',
+  cave: 'Grotte',
+  surface: 'Surface',
+  mirror: 'Dans le reflet',
+  unmirror: 'Hors du reflet',
+  wind: 'Bourrasques',
+};
 function hintOnce(key, color) {
   const text = game.level.def.hints?.[key];
   if (!text || shown.has(game.level.def.id + key)) return;
   shown.add(game.level.def.id + key);
-  ui.toast(text, { color });
+  ui.toast(text, { color, kind: 'hint', title: HINT_TITLES[key] ?? 'Indice' });
 }
 
 // Plateforme mobile : courte pause, puis traversée (Lumi est entraîné)
@@ -1191,7 +1325,7 @@ function placeAltar(tile) {
     altarWarned.add(def.level);
     const island = LEVELS.find((l) => l.id === def.level)?.name ?? def.level;
     sfx.deny();
-    ui.toast(`L’autel de ${def.name} attend sa gemme. Retourne la chercher : ${island}.`, { color: 'var(--rose)', duration: 4200 });
+    ui.toast(`L’autel de ${def.name} attend sa gemme. Retourne la chercher : ${island}.`, { kind: 'warn', title: 'Autel vide' });
     return;
   }
   tutorials.teach('altar');
@@ -1206,7 +1340,7 @@ function placeAltar(tile) {
     particles.ring(p, color, 26, 2.2, { size: 4, life: 0.7 });
     particles.emit(p, color, 22, { speed: 1.8, up: 1.6, life: 0.9, size: 5, gravity: -2 });
     const left = level.altars.filter((a) => !a.placed).length;
-    if (left) ui.toast(`Gemme de ${def.name} déposée. Encore ${left}.`, { color: '#' + color.getHexString(), duration: 2200 });
+    if (left) ui.toast(`Gemme de ${def.name} déposée. Encore ${left}.`, { kind: 'gem', title: 'Sanctuaire', color: '#' + color.getHexString(), duration: 2600 });
     else forgeKey();
   });
 }
@@ -1243,7 +1377,7 @@ async function forgeKey() {
   if (game.level !== level) return;
   sfx.button();
   particles.emit(pos, 0xfff1c9, 40, { speed: 2.4, up: 1.8, life: 1.2, size: 5, gravity: -1 });
-  ui.toast(level.def.hints?.key ?? 'La Porte du Réveil s’ouvre…', { color: 'var(--gold)' });
+  ui.toast(level.def.hints?.key ?? 'La Porte du Réveil s’ouvre…', { kind: 'gem', title: 'Clé du Réveil', color: 'var(--gold)' });
   const total = level.activateBridges((t, i) => {
     sfx.bridge(i);
     pad.rumble(0.05, 0.3, 60);
@@ -1284,7 +1418,7 @@ function collectGem(tile) {
   ui.flyGem((screenV.x * 0.5 + 0.5) * innerWidth, (-screenV.y * 0.5 + 0.5) * innerHeight, idx, game.level.gemTotal);
   setTimeout(() => playing() && tutorials.teach('gem'), 900);
   if (game.gems === game.level.gemTotal) {
-    setTimeout(() => ui.toast('Tous les cristaux ! Il ne reste que la gemme.', { color: 'var(--cyan)' }), 900);
+    setTimeout(() => ui.toast('Tous les cristaux ! Il ne reste que la gemme.', { kind: 'gem', title: 'Cristaux' }), 900);
   }
 }
 
@@ -1298,7 +1432,7 @@ function pressButton() {
   p.y += 0.1;
   particles.ring(p, COLORS.button, 28, 3.2, { size: 5, life: 0.8 });
   particles.emit(p, COLORS.button, 14, { speed: 1.2, up: 2.2, life: 1, size: 5, gravity: -1 });
-  if (level.def.hints?.button) ui.toast(level.def.hints.button, { color: 'var(--rose)' });
+  if (level.def.hints?.button) ui.toast(level.def.hints.button, { kind: 'hint', title: 'Interrupteur', color: 'var(--rose)' });
   level.activateBridges((tile, i) => {
     sfx.bridge(i);
     pad.rumble(0.05, 0.3, 60);
@@ -1430,6 +1564,13 @@ function activeContainer() {
 const keyboard = new KeyboardInput({
   // Fenêtres et menus consomment les touches avant le jeu
   intercept(e) {
+    if (game.state === 'prologue') {
+      if (['Escape', 'Enter', 'Space'].includes(e.code)) {
+        e.preventDefault();
+        skipPrologue();
+      }
+      return true;
+    }
     if (tutorials.isOpen) {
       if (['Enter', 'Space', 'Escape'].includes(e.code) || settings.actionForCode(e.code) === 'interact') {
         e.preventDefault();
@@ -1496,7 +1637,12 @@ const pad = new PadController({
     restart: () => goToLevel(game.index),
     interact,
   },
-  dialogue: { get isOpen() { return dialogue.isOpen; }, advance: () => dialogue.advance(), skip: () => dialogue.skip() },
+  // le prologue se passe comme un dialogue (A / B)
+  dialogue: {
+    get isOpen() { return dialogue.isOpen || prologue.active; },
+    advance: () => (prologue.active ? skipPrologue() : dialogue.advance()),
+    skip: () => (prologue.active ? skipPrologue() : dialogue.skip()),
+  },
   tutorial: { get isOpen() { return tutorials.isOpen; }, dismiss: () => tutorials.dismiss() },
 });
 

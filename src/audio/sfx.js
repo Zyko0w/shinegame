@@ -119,7 +119,7 @@ export class Sfx {
     osc.stop(t0 + dur + 0.05);
   }
 
-  noise({ dur = 0.08, vol = 0.05, freq = 1800, q = 1.2, when = 0, send = 0.1 }) {
+  noise({ dur = 0.08, vol = 0.05, freq = 1800, q = 1.2, when = 0, send = 0.1, attack = 0 }) {
     const ctx = this.ctx;
     if (!ctx || !this.enabled) return;
     const t0 = ctx.currentTime + when;
@@ -130,7 +130,11 @@ export class Sfx {
     f.frequency.value = freq;
     f.Q.value = q;
     const g = ctx.createGain();
-    g.gain.setValueAtTime(vol, t0);
+    if (attack > 0) {
+      // souffle : montée douce plutôt qu'une attaque sèche
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(vol, t0 + attack);
+    } else g.gain.setValueAtTime(vol, t0);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     src.connect(f).connect(g).connect(this.sfxBus);
     if (send) {
@@ -140,6 +144,12 @@ export class Sfx {
     }
     src.start(t0, Math.random() * 0.3);
     src.stop(t0 + dur + 0.02);
+  }
+
+  // Respiration d'une dormeuse : inspiration puis longue expiration
+  breath() {
+    this.noise({ dur: 1.7, vol: 0.05, freq: 620, q: 0.7, attack: 1.0, send: 0.35 });
+    this.noise({ dur: 2.3, vol: 0.04, freq: 420, q: 0.6, attack: 0.5, when: 1.9, send: 0.35 });
   }
 
   // Crépitement continu de la flamme de Lumi (très discret, bus effets)
