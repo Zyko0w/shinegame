@@ -3,8 +3,14 @@
 //   npm run voices:audition   puis ouvrir http://localhost:5173/audition.html
 // (fichiers dans audition/ : servis par le serveur de dev, jamais publiés)
 
+//   npm run voices:audition -- --eleven
+//     même chose avec les voix ElevenLabs du compte (prédéfinies + celles
+//     ajoutées depuis la Voice Library). Une voix déjà écoutée n'est pas
+//     régénérée (quota de caractères). --voices id1,id2 pour en limiter la liste.
+
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
-import { mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { ELEVEN_MODEL, elevenSpeak, elevenVoices } from './eleven.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -34,6 +40,57 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'audition');
 const tmp = join(tmpdir(), 'shine-audition');
 mkdirSync(outDir, { recursive: true });
+
+const page = (title, intro, rows) =>
+  `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
+<style>
+body{margin:0;padding:32px 16px;background:#0b0918;color:#efeaff;font:15px/1.5 system-ui,sans-serif}
+main{max-width:760px;margin:auto}h1{margin:0 0 6px}p{color:#b9b0dd}
+ul{list-style:none;padding:0;display:grid;gap:10px}
+li{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 16px;border:1px solid #2c2650;border-radius:12px;background:#141029}
+small{color:#8f86c4;margin-left:6px}code{display:block;font-size:12px;color:#79f2ff;margin-top:2px}audio{flex:none;width:300px;max-width:50vw}
+</style></head><body><main><h1>${title}</h1>
+<p>${intro}</p>
+<ul>${rows}</ul></main></body></html>`;
+
+if (process.argv.includes('--eleven')) {
+  const only = process.argv[process.argv.indexOf('--voices') + 1];
+  let voices = await elevenVoices();
+  if (process.argv.includes('--voices') && only) {
+    const ids = new Set(only.split(','));
+    voices = voices.filter((v) => ids.has(v.id));
+  }
+  const dir = join(outDir, 'eleven');
+  mkdirSync(dir, { recursive: true });
+  const todo = voices.filter((v) => !existsSync(join(dir, `${v.id}.mp3`)));
+  console.log(`${voices.length} voix, ${todo.length} à générer (~${todo.length * SAMPLE.length} caractères, modèle ${ELEVEN_MODEL})\n`);
+  for (const v of todo) {
+    try {
+      writeFileSync(join(dir, `${v.id}.mp3`), await elevenSpeak(SAMPLE, { voice: v.id }));
+      console.log(`✓ ${v.name.padEnd(28)} ${v.id}`);
+    } catch (e) {
+      console.error(`✗ ${v.name} : ${e.message}`);
+      if (/ 40[123] /.test(e.message)) break;
+    }
+  }
+  const rows = voices
+    .filter((v) => existsSync(join(dir, `${v.id}.mp3`)))
+    .map((v) => {
+      const tags = [v.category, v.labels.gender, v.labels.age, v.labels.accent, v.labels.description ?? v.labels.descriptive].filter(Boolean).join(' · ');
+      return `<li><div><strong>${v.name}</strong> <small>${tags}</small><code>${v.id}</code></div><audio controls preload="none" src="/audition/eleven/${v.id}.mp3"></audio></li>`;
+    })
+    .join('\n');
+  writeFileSync(
+    join(root, 'audition.html'),
+    page(
+      'Audition ElevenLabs',
+      `Même réplique en français (modèle ${ELEVEN_MODEL}). Choisis une voix par personnage, copie son identifiant dans <code>ELEVEN</code> (scripts/generate-voices.mjs) puis lance <code>npm run voices</code>. Pour un vrai accent français, ajoute des voix françaises depuis la Voice Library d'ElevenLabs et relance l'audition.`,
+      rows,
+    ),
+  );
+  console.log('\n→ ouvre http://localhost:5173/audition.html');
+  process.exit(0);
+}
 
 const results = [];
 for (const voice of CANDIDATES) {

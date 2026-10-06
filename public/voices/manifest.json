@@ -170,5 +170,29 @@
   "alcor/alcor/l3": {
     "file": "voices/alcor/alcor-l3.mp3",
     "hash": "1ea074dc466b"
+  },
+  "alcor/alcor/l0": {
+    "file": "voices/alcor/alcor-l0.mp3",
+    "hash": "1586fe3c61a9"
+  },
+  "alcor/alcor/l1": {
+    "file": "voices/alcor/alcor-l1.mp3",
+    "hash": "f8776381bf99"
+  },
+  "alcor/alcor/l2": {
+    "file": "voices/alcor/alcor-l2.mp3",
+    "hash": "535057c5394a"
+  },
+  "alcor/alcor/l4": {
+    "file": "voices/alcor/alcor-l4.mp3",
+    "hash": "f7f5427fe9fe"
+  },
+  "alcor/alcor/r0": {
+    "file": "voices/alcor/alcor-r0.mp3",
+    "hash": "2c1cdbd6b034"
+  },
+  "alcor/outro": {
+    "file": "voices/alcor/outro.mp3",
+    "hash": "a3a9d0a95d6c"
   }
 }

@@ -1,8 +1,10 @@
-// Génère les voix des personnages en MP3 avec les voix neuronales de
-// Microsoft Edge (paquet msedge-tts : gratuit, sans compte ni clé).
+// Génère les voix des personnages en MP3 :
+// - ElevenLabs pour les personnages listés dans ELEVEN (clé dans .env) ;
+// - sinon les voix neuronales de Microsoft Edge (msedge-tts : gratuit, sans clé).
 //
 //   npm run voices          → génère ce qui manque ou a changé
 //   npm run voices -- --all → régénère tout
+//   npm run voices -- --edge → ignore ElevenLabs (voix Edge pour tous)
 //   npm run voices -- --prune → retire seulement du manifeste les répliques
 //                               dont le texte a changé (hors ligne) : le jeu
 //                               utilise alors la voix du navigateur pour elles
@@ -18,6 +20,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { LEVELS } from '../src/game/levels.js';
+import { ELEVEN_MODEL, elevenKey, elevenSpeak } from './eleven.mjs';
 
 // Casting : une voix Edge + un réglage de hauteur / débit par personnage
 export const CAST = {
@@ -33,6 +36,31 @@ export const CAST = {
   antar: { voice: 'en-US-BrianMultilingualNeural', rate: '+10%', volume: '+10%' }, // colère
   alcor: { voice: 'de-DE-SeraphinaMultilingualNeural', rate: '-2%' }, // jalousie
 };
+
+// Casting ElevenLabs (prioritaire sur CAST) : identifiant de voix par personnage.
+// Choisis à l'oreille avec « npm run voices:audition -- --eleven ».
+// Réglages facultatifs : stability (eleven_v3 : 0 = créatif, 0.5 = naturel,
+// 1 = stable), similarity (0–1). Un personnage absent garde sa voix Edge.
+export const ELEVEN = {
+  lumi: { voice: 'EXAVITQu4vr4xnSDxMaL' },
+  orion: { voice: 'JBFqnCBsd6RMkjVDRZzb' },
+  mira: { voice: '...' },
+  lyre: { voice: '...' },
+  andra: { voice: '...' },
+  betel: { voice: '...' },
+  antar: { voice: '...' },
+  alcor: { voice: '...' },
+};
+
+const useEdgeOnly = process.argv.includes('--edge');
+const hasKey = !!elevenKey();
+
+// Voix effective d'un personnage (l'empreinte en dépend : changer de moteur régénère)
+function castFor(who, offline = false) {
+  const el = ELEVEN[who];
+  if (el && !useEdgeOnly && (hasKey || offline)) return { engine: 'eleven', model: ELEVEN_MODEL, ...el };
+  return CAST[who];
+}
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'public', 'voices');
@@ -67,7 +95,7 @@ if (prune) {
   const current = new Map(lines.map((l) => [l.key, l]));
   for (const [k, v] of Object.entries(manifest)) {
     const l = current.get(k);
-    const cast = l && CAST[l.who];
+    const cast = l && castFor(l.who, true);
     if (!l || !cast || v.hash !== hash({ text: speakable(l.text), cast })) {
       delete manifest[k];
       n++;
@@ -84,9 +112,12 @@ let made = 0;
 let skipped = 0;
 let failed = 0;
 let currentVoice = null;
+let elevenChars = 0;
+
+if (!hasKey && !useEdgeOnly && Object.keys(ELEVEN).length) console.warn('! pas de clé ElevenLabs (.env) : voix Edge pour tout le monde\n');
 
 for (const line of lines) {
-  const cast = CAST[line.who];
+  const cast = castFor(line.who);
   if (!cast) {
     console.warn(`! pas de voix pour « ${line.who} » (${line.key})`);
     failed++;
@@ -97,6 +128,23 @@ for (const line of lines) {
   const dest = join(outDir, line.file);
   if (manifest[line.key]?.hash === h && existsSync(dest)) {
     skipped++;
+    continue;
+  }
+  if (cast.engine === 'eleven') {
+    try {
+      const mp3 = await elevenSpeak(text, cast);
+      mkdirSync(dirname(dest), { recursive: true });
+      writeFileSync(dest, mp3);
+      manifest[line.key] = { file: `voices/${line.file}`, hash: h };
+      made++;
+      elevenChars += text.length;
+      console.log(`✓ ${line.key.padEnd(26)} ElevenLabs ${cast.voice}`);
+    } catch (e) {
+      failed++;
+      console.error(`✗ ${line.key} : ${e.message}`);
+      // quota épuisé ou clé refusée : inutile d'insister
+      if (/ 40[123] /.test(e.message)) break;
+    }
     continue;
   }
   try {
@@ -141,5 +189,6 @@ const keys = new Set(lines.map((l) => l.key));
 for (const k of Object.keys(manifest)) if (!keys.has(k)) delete manifest[k];
 mkdirSync(outDir, { recursive: true });
 writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+if (elevenChars) console.log(`\n~${elevenChars} caractères ElevenLabs consommés.`);
 console.log(`\n${made} générée(s), ${skipped} inchangée(s), ${failed} en échec — ${lines.length} répliques au total.`);
 process.exit(failed ? 1 : 0);
