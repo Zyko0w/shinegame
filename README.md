@@ -1,6 +1,6 @@
 <div align="center">
 
-<a href="https://shinegame-six.vercel.app"><img src=".github/assets/logo.svg" alt="Amnesia" width="760" /></a>
+<a href="https://amne-sia.vercel.app"><img src=".github/assets/logo.svg" alt="Amnesia" width="760" /></a>
 
 ### Un puzzle-diorama à travers l’archipel des émotions
 
@@ -9,7 +9,7 @@ Guide **Lumi**, sa dernière petite flamme, à travers chacun de ses sentiments 
 
 <br>
 
-[![Jouer](https://img.shields.io/badge/▶_Jouer_maintenant-shinegame--six.vercel.app-ffd47a?style=for-the-badge&labelColor=07060f)](https://shinegame-six.vercel.app)
+[![Jouer](https://img.shields.io/badge/▶_Jouer_maintenant-amne--sia.vercel.app-ffd47a?style=for-the-badge&labelColor=07060f)](https://amne-sia.vercel.app)
 
 ![three.js](https://img.shields.io/badge/three.js-r186-efeaff?style=flat-square&labelColor=07060f&logo=threedotjs&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-8-efeaff?style=flat-square&labelColor=07060f&logo=vite&logoColor=white)
@@ -195,6 +195,6 @@ Les niveaux sont décrits en texte dans `src/game/levels.js` : une grille de hau
 <div align="center">
 <br>
 
-**[✦ Jouer à Amnesia ✦](https://shinegame-six.vercel.app)**
+**[✦ Jouer à Amnesia ✦](https://amne-sia.vercel.app)**
 
 </div>
